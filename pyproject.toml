@@ -15,3 +15,13 @@ dependencies = [
     "seaborn>=0.13.2",
     "torch>=2.12.1",
 ]
+
+# Install the CPU-only build of PyTorch so the lab runs identically on student
+# machines (no GPU). See https://docs.astral.sh/uv/guides/integration/pytorch/
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
