@@ -6,7 +6,7 @@ wet-lab antibody design team: each round you pick a batch of candidate sequences
 "test," and your goal is to grow the Pareto front (and its hypervolume) under a fixed
 experimental budget.
 
-The lab is designed to run **entirely on a CPU laptop** — no GPU required.
+The lab is designed to run on a CPU laptop (no GPU required).
 
 ---
 
