@@ -26,15 +26,15 @@ import torch
 # Source: SEED=123, the shared initial design (data/initial_indices.json), the
 # synthetic oracle (allow_true=False), qLogNEHVI over the discrete pool with a
 # SobolQMCNormalSampler(seed=SEED). Regenerate via Notebook 01 if assets change.
-EXPECTED_CANDIDATE_IDS: list[int] = [1365, 1974, 1216, 581]
+EXPECTED_CANDIDATE_IDS: list[int] = [1365, 921, 1371, 1069]
 EXPECTED_NEW_Y: list[list[float]] = [
-    [0.6204253926, 0.7326440898],
-    [0.6768832192, 0.6267117611],
-    [0.6331730885, 0.5954889214],
-    [0.4943258360, 0.7434118214],
+    [0.6308483670, 0.7302168002],
+    [0.5951422757, 0.7939953307],
+    [0.6046998904, 0.5706681471],
+    [0.7411710529, 0.7195688770],
 ]
-EXPECTED_HV_BEFORE: float = 0.43212216036313145
-EXPECTED_HV_AFTER: float = 0.5687713009516061
+EXPECTED_HV_BEFORE: float = 0.420886510326475
+EXPECTED_HV_AFTER: float = 0.6572564661812282
 
 # Tolerances for the floating-point comparisons (outline §8.10).
 _Y_RTOL = 1e-5

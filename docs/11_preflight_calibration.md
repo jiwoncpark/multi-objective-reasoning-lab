@@ -8,24 +8,26 @@ A failure loops back to Steps 5–6 (retune embedding/oracle) or Step 4 (re-cura
 
 **Result:** `scripts/preflight_sweep.py` sweeps the 7 strategies × N seeds × 6 rounds
 on the real 2048-sequence pool and **all §18.4 criteria PASS**. Latest run
-(2026-06-28, 5 seeds):
+(2026-06-28, 5 seeds, valley depth `-0.55`):
 
 | metric (mean) | AUC-HV | finalHV | angSpr | cover | nondom |
 |---|---|---|---|---|---|
-| all_nehvi | 0.8553 | 1.0149 | 0.251 | 4.6 | 7.6 |
-| all_scalarized_0.8_0.2 | 0.8430 | 0.9820 | 0.114 | 2.0 | 5.0 |
-| all_parego | 0.8359 | 0.9853 | 0.116 | 2.6 | 4.0 |
-| scalarization_sweep | 0.8354 | 0.9980 | 0.170 | 3.0 | 4.8 |
-| mixed | 0.8350 | 1.0068 | 0.224 | 4.2 | 5.8 |
-| explore_then_exploit | 0.8214 | 1.0034 | 0.217 | 4.6 | 6.2 |
-| random_baseline | 0.6653 | 0.7823 | 0.259 | 5.0 | 2.6 |
+| all_nehvi | 0.8522 | 1.0193 | 0.191 | 3.6 | 5.0 |
+| all_parego | 0.8443 | 0.9939 | 0.119 | 2.6 | 3.6 |
+| all_scalarized_0.8_0.2 | 0.8408 | 0.9691 | 0.126 | 2.2 | 3.8 |
+| explore_then_exploit | 0.8153 | 1.0156 | 0.222 | 4.2 | 5.0 |
+| scalarization_sweep | 0.8039 | 1.0093 | 0.156 | 3.2 | 4.0 |
+| mixed | 0.7999 | 1.0217 | 0.195 | 3.8 | 5.4 |
+| random_baseline | 0.6391 | 0.7276 | 0.284 | 5.8 | 5.6 |
 
-Highlights: nehvi clearly beats random (0.855 vs 0.665); a mixed strategy beats
-all_nehvi in some seeds (mixed 2/5, parego 2/5, explore 1/5); leaderboard not
-predetermined (2 distinct per-seed winners, top-two mean gap 0.012); full campaign
-in ~5.5s; discrete acq margin q-vs-(q+1) abs 0.037 (rel 9.3e-4); achieved-vs-true
-at 99% of max HV. Plots in `outputs/preflight/{hv_curves,selection_coverage}.png`.
-Shrunk test (`tests/scripts/test_preflight_sweep.py`) green.
+Highlights: nehvi clearly beats random (0.852 vs 0.639); a mixed strategy beats
+all_nehvi in some seeds (mixed 1/5, parego 1/5); leaderboard not predetermined and
+**closely contested** — 3 distinct per-seed winners (all_nehvi / all_parego /
+all_scalarized_0.8_0.2), top-two mean gap 0.008; criteria 4 & 5 on region coverage
+(nehvi 3.6 > scal 2.2; parego 2.6 > scal 2.2); full campaign in ~5.2s; discrete acq
+margin q-vs-(q+1) abs 0.022 (rel 5.7e-4); achieved-vs-true at 98% of max HV. Plots in
+`outputs/preflight/{hv_curves,selection_coverage}.png`. Shrunk test
+(`tests/scripts/test_preflight_sweep.py`) green.
 
 > **Criteria 4 & 5 metric (2026-06-28, resolved):** these are scored on **region
 > coverage** (how many objective-space regions a strategy's selections touch), not

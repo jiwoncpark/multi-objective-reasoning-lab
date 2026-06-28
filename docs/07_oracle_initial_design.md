@@ -7,25 +7,32 @@
 **Result:** `mobo_lab/oracle.py` + `scripts/build_oracle.py` + `scripts/build_initial_design.py`
 materialize `data/oracle_true_objectives.npy` `[2048, 2] ⊂ [0,1]`, `data/oracle_params.json`
 (tunable design constants), and `data/initial_indices.json` (12 ids), all byte-identical on
-re-run. On the real latents: `spearman(obj1, obj2) = -0.21` (small / mild trade-off), true Pareto
-front = **7 points** spanning a max pairwise latent distance of **1.0** (≥2 separated regions). The
+re-run. On the real latents (valley depth `-0.55`, see the concavity update below):
+`spearman(obj1, obj2) = -0.16` (small / mild trade-off), true Pareto
+front = **7 points** spanning a max pairwise latent distance of **1.02** (≥2 separated regions). The
 initial design is 12 sequences drawn from the **central-or-below** objective band (both objectives
 ≤ the 60th percentile, `--max-quantile`), then farthest-point-sampled within that band for latent
-spread — 0 on the true front; `HV(initial) = 0.409` vs `HV(true front) = 1.025` → **40% of the
-achievable max**, i.e. ~60% headroom for the competition. 16 tests green.
+spread — 0 on the true front; `HV(initial) = 0.397` vs `HV(true front) = 1.045` → **38% of the
+achievable max**, i.e. ~62% headroom for the competition. Tests green.
 
-> **Preflight note (Step 10):** remaining difficulty knob to revisit at the gate — the front is
-> fairly convex (concavity is mild), tunable via `oracle_params.json` without code changes. The
-> initial-design headroom is now generous (40% of max); `--max-quantile` can retune it if the
-> preflight shows strategies separate too early or too late.
+> **Preflight note (Step 10):** the concavity knob (valley depth) was revisited at the gate —
+> see the concavity update below. It is tunable via `build_oracle.py` `DEFAULT_PARAMS` /
+> `oracle_params.json` without touching the rest of the code. The initial-design headroom stays
+> generous (38% of max); `--max-quantile` can retune it if the preflight shows strategies separate
+> too early or too late.
 >
-> **Update (2026-06-28): GATE PASSED.** The Step 10 preflight passed all §18.4 criteria on the
-> current oracle/initial design (see `docs/11`). The earlier "criterion 5 passes narrowly" note is
-> **resolved and was not a concavity problem**: deepening the central valley does not widen the
-> ParEGO-vs-fixed gap (the angular-spread margin is seed-noise; over-deepening even shrinks the
-> front to 5 points). The gate now scores criteria 4 & 5 on **region coverage**, which is the stable
-> cross-seed discriminator (ParEGO ≥ fixed in every seed). So this concavity knob is left **as-is**;
-> the oracle and the frozen golden constants are unchanged.
+> **Update (2026-06-28): GATE PASSED; concavity deepened to `-0.55`.** The central valley height
+> was deepened from `-0.35` to **`-0.55`** to strengthen the front concavity for the Notebook 04
+> Chebyshev-vs-linear / weight-steering teaching point. The Step 10 preflight re-passed all §18.4
+> criteria (5 seeds; see `docs/11`), and the golden constants were re-frozen (`docs/12`). The
+> competition is *more* competitive after the change (3 distinct per-seed leaderboard winners,
+> top-two AUC gap 0.008).
+>
+> Note: this was **not** the fix for the earlier "criterion 5 passes narrowly" item — deepening the
+> valley does *not* reliably widen the ParEGO-vs-fixed angular-spread gap (that margin is seed-noise;
+> over-deepening past ~`-0.8` shrinks the front to 5 points). Criterion 5 was made robust separately
+> by scoring criteria 4 & 5 on **region coverage** (the stable cross-seed discriminator: ParEGO ≥
+> fixed every seed). The deepening here is purely for pedagogy.
 
 ## Goal
 

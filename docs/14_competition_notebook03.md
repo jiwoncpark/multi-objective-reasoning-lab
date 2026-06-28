@@ -17,7 +17,8 @@ draws the reveal layers. `notebooks/03_competition.{py,ipynb}` has the briefing,
 locked setup, the single editable `TEAM_STRATEGY` cell (validated), the run +
 results plots, the leaderboard, and the clearly-marked instructor reveal +
 debrief prompts. Full 6-round real campaign + reveal runs headless in ~9s
-(AUC-HV 0.866, final HV 1.013, round-1 HV 0.5688 matches the frozen golden path).
+(example team AUC-HV 0.860, final HV 1.037, round-1 HV 0.6573 matches the frozen
+golden path; valley depth `-0.55`).
 `tests/mobo_lab/test_competition.py` (8) + plotting + nb03 smoke green; 179 total.
 
 > **`run_campaign` signature:** kept the doc's `(team_strategy, team_name, seed,

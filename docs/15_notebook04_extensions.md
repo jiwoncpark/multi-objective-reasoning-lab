@@ -10,9 +10,12 @@ comparison table/plot: (1) custom per-round scalarization schedule (via the new
 `acquisitions.format_scalarized_name`); (2) explore→exploit vs all-NEHVI; (3)
 `nearest` vs `diverse_nearest` on the continuous path; (4) conceptual
 information-theoretic discussion + one `uncertainty`-card run. No new core BO code.
-Observed contrasts on the real pool: changing weights 0.848 > fixed 0.788 AUC-HV;
-diverse_nearest 0.813 > nearest 0.796; uncertainty-first 0.951 AUC-HV (a nice
-exploration win). Runs headless in ~50s; `tests/notebooks/test_nb04_smoke.py` green.
+The comparisons are **single-seed illustrations** whose direction is seed/oracle
+dependent (the notebook markdown is framed open-ended, "*can* beat… does it here?"),
+not guaranteed winners. On the current oracle (valley `-0.55`): changing-weights
+0.828 vs fixed-0.5/0.5 0.844; nearest 0.839 vs diverse_nearest 0.798;
+uncertainty-then-NEHVI 0.963 AUC-HV (a standout exploration win). Runs headless in
+~50s; `tests/notebooks/test_nb04_smoke.py` green.
 
 > **Supporting changes (this step):** `acquisitions.format_scalarized_name` (inverse
 > of `parse_scalarized_weights`) and `is_known_card`, and `validate_batch_plan` now

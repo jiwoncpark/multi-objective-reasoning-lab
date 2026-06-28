@@ -11,9 +11,12 @@ in a passing `verify_golden_path`. The golden constants are **frozen** in
 design, `allow_true=False` oracle, qLogNEHVI + `SobolQMCNormalSampler(seed=SEED)`,
 `optimize_discrete`):
 
-- `EXPECTED_CANDIDATE_IDS = [1365, 1974, 1216, 581]`
-- `EXPECTED_NEW_Y = [[0.6204,0.7326],[0.6769,0.6267],[0.6332,0.5955],[0.4943,0.7434]]`
-- `EXPECTED_HV_BEFORE = 0.43212`, `EXPECTED_HV_AFTER = 0.56877` (HV grows).
+- `EXPECTED_CANDIDATE_IDS = [1365, 921, 1371, 1069]`
+- `EXPECTED_NEW_Y = [[0.6308,0.7302],[0.5951,0.7940],[0.6047,0.5707],[0.7412,0.7196]]`
+- `EXPECTED_HV_BEFORE = 0.42089`, `EXPECTED_HV_AFTER = 0.65726` (HV grows).
+
+(Re-frozen 2026-06-28 after the oracle valley depth was deepened to `-0.55` for the
+Notebook 04 teaching point; the gate re-passed all §18.4 criteria first.)
 
 Byte-stable across repeated CPU runs on this machine. `tests/mobo_lab/test_verification.py`
 now asserts against the real frozen constants; `tests/notebooks/test_nb01_golden.py`

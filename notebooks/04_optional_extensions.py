@@ -80,9 +80,12 @@ h_fixed = competition.run_campaign(baseline_strategy, "fixed_0.5_0.5")
 compare([("changing weights", h_schedule), ("fixed 0.5/0.5", h_fixed)])
 
 # %% [markdown]
-# **Teaching point:** rotating the preference toward regions the front hasn't
-# covered yet can beat committing to a single weight — especially when the front has
-# separated regions. Does the schedule's AUC-HV beat the fixed baseline here?
+# **Teaching point:** because the true front is *concave* (a recessed middle between
+# two lobes — you'll see this in the Notebook 03 reveal), the weight you pick steers
+# *which* region you reach. Rotating the preference can broaden coverage of the front
+# over time; a single fixed weight tends to commit to one part of it. Which wins on
+# AUC-HV here is seed-dependent and not the point — compare *where* each one's points
+# land (and how many non-dominated trade-offs each finds) rather than just the score.
 
 # %% [markdown]
 # ## 2. Explore → exploit schedule

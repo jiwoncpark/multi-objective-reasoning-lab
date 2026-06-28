@@ -11,9 +11,10 @@ difficulty targets on purpose (outline section 18.2):
 * **>=2 separated Pareto regions** -- two Gaussian "bonus" bumps placed far apart in
   latent space push out two distinct front lobes, so fixed scalarization can
   over-focus and exploration can pay off;
-* **mild front concavity** -- a shallow Gaussian "valley" between the two bumps
-  recesses the balanced middle, so Chebyshev scalarization beats a linear weighted
-  sum (motivates the notebook-04 extension).
+* **front concavity** -- a Gaussian "valley" between the two bumps recesses the
+  balanced middle, so Chebyshev scalarization beats a linear weighted sum and
+  weight choice visibly steers which front region is reached (motivates the
+  notebook-04 extension); the valley depth is the main concavity knob.
 
 Each objective is min-max normalized over the library to roughly ``[0, 1]`` so
 ``REF_POINT = [-0.05, -0.05]`` sits just below the worst real values. The noise
@@ -58,7 +59,7 @@ DEFAULT_PARAMS: dict = {
         # extreme-stability lobe (low z0,z2 / high z1,z3): boost objective 2
         {"center": [0.30, 0.70, 0.30, 0.65, 0.50], "width": 0.22, "height": 0.55, "obj": [0.0, 1.0]},
         # concavity valley in the balanced middle: penalize both objectives
-        {"center": [0.50, 0.50, 0.48, 0.48, 0.50], "width": 0.26, "height": -0.35, "obj": [1.0, 1.0]},
+        {"center": [0.50, 0.50, 0.48, 0.48, 0.50], "width": 0.26, "height": -0.55, "obj": [1.0, 1.0]},
     ],
 }
 
