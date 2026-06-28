@@ -1,8 +1,30 @@
 # Step 11 — Notebook 01: seeded golden-path MOBO iteration
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 10 preflight **passing** (assets locked), plus Steps 1–9.
 **Unblocks:** Notebooks 02–03; this is the keystone reproducibility milestone.
+
+**Result:** `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.py` (paired
+`.ipynb` via jupytext) walks the full single round (sections 01.1–01.15) and ends
+in a passing `verify_golden_path`. The golden constants are **frozen** in
+`mobo_lab/verification.py` from the seeded discrete path (SEED=123, shared initial
+design, `allow_true=False` oracle, qLogNEHVI + `SobolQMCNormalSampler(seed=SEED)`,
+`optimize_discrete`):
+
+- `EXPECTED_CANDIDATE_IDS = [1365, 1974, 1216, 581]`
+- `EXPECTED_NEW_Y = [[0.6204,0.7326],[0.6769,0.6267],[0.6332,0.5955],[0.4943,0.7434]]`
+- `EXPECTED_HV_BEFORE = 0.43212`, `EXPECTED_HV_AFTER = 0.56877` (HV grows).
+
+Byte-stable across repeated CPU runs on this machine. `tests/mobo_lab/test_verification.py`
+now asserts against the real frozen constants; `tests/notebooks/test_nb01_golden.py`
+executes the notebook headless (nbclient) — its `verify_golden_path` cell raises on
+any drift, so a clean run is the reproducibility guarantee. 168 tests green.
+
+> **Cross-machine re-verify (open, instructor action):** still to confirm on a
+> second clean environment (fresh `uv sync`) before teaching, per §18.4.1. The
+> discrete-margin was modest (abs 0.037 in log-acq units) but comfortably above the
+> threshold; the qLogNEHVI pure-Python fallback was **not** forced — revisit only
+> if a second machine disagrees.
 
 ## Goal
 

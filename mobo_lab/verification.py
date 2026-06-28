@@ -8,9 +8,12 @@ only -- never the continuous acquisition candidates, which are not reproducible
 across machines (outline §14 mitigation #5); the reproducibility guarantee runs
 through the discrete-pool path.
 
-The ``EXPECTED_*`` constants are placeholders here and are **frozen in Step 11**
-once the golden path is finalized. Until then :func:`verify_golden_path` raises a
-clear "not frozen yet" error rather than comparing against the placeholders.
+The ``EXPECTED_*`` constants were **frozen in Step 11** from the seeded discrete
+golden path (Notebook 01) after the Step 10 preflight gate locked the
+oracle/embedding/initial-design. They are byte-stable across re-runs on CPU; if
+:func:`verify_golden_path` ever fails for a student, an upstream asset or package
+version drifted. To re-freeze, run Notebook 01 end-to-end and copy the realized
+``candidate_ids`` / ``new_Y`` / ``hv_before`` / ``hv_after`` here.
 """
 
 from __future__ import annotations
@@ -19,11 +22,19 @@ from collections.abc import Iterable
 
 import torch
 
-# --- Frozen in Step 11 after the golden path is finalized -------------------- #
-EXPECTED_CANDIDATE_IDS: list[int] = []
-EXPECTED_NEW_Y: list[list[float]] = []
-EXPECTED_HV_BEFORE: float = 0.0
-EXPECTED_HV_AFTER: float = 0.0
+# --- Frozen in Step 11 from the seeded discrete golden path (Notebook 01) ----- #
+# Source: SEED=123, the shared initial design (data/initial_indices.json), the
+# synthetic oracle (allow_true=False), qLogNEHVI over the discrete pool with a
+# SobolQMCNormalSampler(seed=SEED). Regenerate via Notebook 01 if assets change.
+EXPECTED_CANDIDATE_IDS: list[int] = [1365, 1974, 1216, 581]
+EXPECTED_NEW_Y: list[list[float]] = [
+    [0.6204253926, 0.7326440898],
+    [0.6768832192, 0.6267117611],
+    [0.6331730885, 0.5954889214],
+    [0.4943258360, 0.7434118214],
+]
+EXPECTED_HV_BEFORE: float = 0.43212216036313145
+EXPECTED_HV_AFTER: float = 0.5687713009516061
 
 # Tolerances for the floating-point comparisons (outline §8.10).
 _Y_RTOL = 1e-5
