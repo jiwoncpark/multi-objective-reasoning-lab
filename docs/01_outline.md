@@ -1783,7 +1783,7 @@ steps complete.
 | 4 | `docs/05_library_curation_oas.md` | `scripts/{download_oas,build_library}.py`, `mobo_lab/data.py` (OAS → `vh_library.csv`) | **DONE** |
 | 5 | `docs/06_embeddings.md` | `scripts/build_latents.py`, `mobo_lab/embeddings.py` (`vh_latents.npy`) | **DONE** |
 | 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | **DONE** |
-| 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | TODO |
+| 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | **DONE** |
 | 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | TODO |
 | 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | TODO |
 | 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | TODO |

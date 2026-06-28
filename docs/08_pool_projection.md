@@ -1,8 +1,30 @@
 # Step 7 — Sequence pool + continuous→discrete projection
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 5 (`vh_latents.npy`), Step 4 (`data.py`)
 **Unblocks:** strategies (Step 9), notebooks 01–03, the competition closed loop.
+
+**Result:** `mobo_lab/projection.py` (low-level `nearest` / `diverse_nearest` +
+`METHODS` dispatch) and `mobo_lab/pool.py` (`VHSequencePool`) implement the
+continuous→discrete bridge. `VHSequencePool.from_files()` loads the real assets:
+`X` is `[2048, 5] ⊂ [0,1]` double, `ids == range(2048)`, aligned with `sequences`.
+Both projection strategies are greedy and order-preserving, take a `forbidden` set
+they never mutate (private copy), and raise `ValueError` on pool exhaustion. The
+diversity term weight is a module constant `DIVERSITY_WEIGHT = 1.0`; for the first
+pick (empty within-batch chosen set) `diverse_nearest` reduces exactly to
+`nearest`. Identity holds: exact pool rows project back to their own IDs (the
+property that makes the discrete golden path's projection exact). End-to-end check
+on the real pool: a `[4, 5]` proposal batch projects to 4 distinct unqueried IDs,
+`diverse_nearest` returns a more spread set than `nearest`, and `oracle.evaluate`
+accepts the IDs directly. 22 new tests green (120 total).
+
+> **Design note:** the doc-specified low-level signature is
+> `diverse_nearest(candidates, pool_X, forbidden)`, so the diversity repulsion is
+> from the **within-call chosen batch only** — `pending_ids` passed to
+> `project_to_unqueried_sequences` contribute to *exclusion* (the `forbidden` set)
+> but not to the repulsion anchor. The golden path projects the whole `q`-batch in
+> a single call with no pending, so this is exactly within-batch diversity.
+> Cross-call pending-aware diversity is a deferred extension.
 
 ## Goal
 
