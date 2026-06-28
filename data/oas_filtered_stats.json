@@ -1,0 +1,12 @@
+{
+  "scanned": 10238,
+  "cheap_kept": 10200,
+  "shards_used": 100,
+  "distinct_sources": 91,
+  "anarcii_kept": 10200,
+  "anarcii_dropped": 0,
+  "dataset": "ConvergeBio/oas-unpaired",
+  "config": "Briney et al., 2019",
+  "split": "heavy",
+  "final": 10200
+}
