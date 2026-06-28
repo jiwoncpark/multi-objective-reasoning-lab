@@ -74,8 +74,13 @@ X_pool: torch.Tensor  # shape [num_sequences, latent_dim]
 Recommended dimensions:
 
 ```python
-latent_dim = 8
+latent_dim = 5
 ```
+
+(`LATENT_DIM = 5` is the authoritative value used everywhere — `config.py`, the notebooks, and the
+golden-path assertions. An earlier draft of this section said `8`; that is stale. Lower dimension
+makes acquisition optimization easier and more reproducible and stabilizes GP fitting with only
+`N_INITIAL = 12` points, while still separating the curated library cleanly.)
 
 The latent vectors should be scaled to `[0, 1]^d`, so that BoTorch can use standard box constraints:
 
@@ -125,32 +130,26 @@ For the first version, `method="nearest"` is sufficient. The competition can opt
 
 ### 4.1 Objective convention
 
-Use two objectives and make both maximization objectives.
+Use two objectives, both maximization, named **"binding-like"** and
+**"stability-like"** (see the decision below).
 
-Example framing:
+#### Decision (2026-06-27): the oracle is fully synthetic over the latents
 
-```text
-Objective 1: binding-like score, higher is better
-Objective 2: developability-like score, higher is better
-```
+The two objectives are **maximization** objectives named "binding-like" and
+"stability-like", computed as a **smooth synthetic function of the 5-D latent
+embedding** (see §13 and `docs/07_oracle_initial_design.md`) — **not** read from
+real biophysical labels. This makes the objectives learnable by the surrogate by
+construction (so model-guided strategies can beat random, §18.2.4) and gives full
+control over difficulty knobs (trade-off strength, isolated Pareto regions, front
+concavity, §18.3).
 
-The exact biological names can be changed later.
-
-#### Note (data-driven, 2026-06-27): which properties actually trade off
-
-The raw library `data/vh_data.xlsx` (113 VH sequences) carries four *simulated*
-biophysical properties. We do not use them directly, but the EDA in
-`scripts/visualize_data.py` tells us how to orient the synthetic oracle:
-
-- Re-expressed as "higher is better" (`pKd = -log10(Kd[M])`, `Tm`, `Yield`,
-  `-BV`), the Spearman correlations show **binding (pKd) is essentially
-  uncorrelated with stability/yield** (rho ~ 0.14 / 0.04), while **Tm and Yield
-  are strongly redundant** (rho ~ 0.81).
-- Therefore the natural two-objective pair is **binding vs stability** (a genuine
-  near-independent trade-off), with yield/BV available as flavor or as a third
-  objective in extensions. Building the oracle around two redundant properties
-  would collapse the Pareto front to a near-diagonal and make the competition
-  trivial (cf. §18.2 difficulty criteria).
+The original `data/vh_data.xlsx` EDA (`pKd` essentially uncorrelated with
+`Tm`/`Yield`, rho ~ 0.14; `Tm`/`Yield` redundant, rho ~ 0.81) is now used only as
+a **design target**: we orient the synthetic objectives so the two axes are
+**near-independent** (target |Spearman| ~ 0.1) with ≥2 separated front regions,
+preserving the "genuine binding-vs-stability trade-off" story without depending on
+the real labels. The 113-sequence `vh_data.csv` is retained as legacy reference;
+the competition pool is the larger curated OAS library (§13).
 
 ### 4.2 Noisy observations
 
@@ -1348,63 +1347,83 @@ Raw input: `data/vh_data.xlsx` (single sheet, 113 rows). Columns: `Sample ID`,
 Library facts to keep in mind for the rest of the build:
 
 - 113 unique sequences, lengths 112-130, 20 standard amino acids only.
-- 43 distinct IGHV germline genes; the library is diverse but **small**. 113 may
-  be too few for a rich competition pool (cf. §18.3) -- expanding the sequence
-  library is a likely follow-up.
-- Latent embeddings (`vh_latents.npy`) and oracle objective files are still TODO;
-  they will be derived from the sequences, not from the raw spreadsheet.
+- 43 distinct IGHV germline genes; the library is diverse but **small**. 113 is
+  too few for a rich competition pool (cf. §18.3).
+
+#### Decision (2026-06-27): larger curated OAS library + pluggable embeddings
+
+- The competition pool is now a **curated library drawn from the Observed Antibody
+  Space (OAS)**, of size **2^11 = 2048** — dense enough to be a good nearest-neighbor
+  projection library and a smooth "ground-truth" Pareto-front scatter; only
+  `N_INITIAL` (~12) of it is evaluated to start a run. `scripts/download_oas.py`
+  **streams** the Hugging Face Parquet mirror `ConvergeBio/oas-unpaired` (human
+  unpaired-heavy; filtered per-row by Species/Chain/BSource/BType/Isotype) and filters
+  aggressively with an **early stop** (productive, in-frame, no stop codon, valid length
+  ~90–150 aa, standard residues only), then **validates each survivor with ANARCII**
+  numbering (heavy chain, no error) so the set is clean while the download stays small;
+  `scripts/build_library.py` then curates (dedup, cluster, **drop singleton/rare
+  modes**, balance, sample to 2048) → `data/vh_library.csv`. See
+  `docs/05_library_curation_oas.md`. OAS streaming is instructor-side; all curation/
+  filter logic is tested offline. The 113-row `vh_data.csv` +
+  `scripts/{parse_data,visualize_data}.py` are retained as **legacy reference only**.
+- Latent embeddings are built by `scripts/build_latents.py` with a **pluggable
+  backend**: default `descriptor_pca` (amino-acid composition + physicochemical
+  descriptors → sign-fixed SVD/PCA → min-max to `[0,1]^5`, deterministic, CPU, no
+  downloads), with a hook to swap in a pretrained antibody LM (`IgBert_unpaired`)
+  later. See `docs/06_embeddings.md`.
+- The oracle objectives are a synthetic function of these latents (§4.1 decision),
+  with deterministic per-sequence noise; only the hidden true array is stored.
 
 Recommended structure:
 
 ```text
 data/
-  vh_sequences.csv
-  vh_latents.npy
+  vh_library.csv                   # curated OAS pool (sequence_id, sequence, length, source, cluster_id)
+  oas_filtered.csv.gz              # ~10,200 ANARCII-clean reservoir (sequence, source, isotype) -> sample 2048 from it
+  vh_latents.npy                   # [N, 5] in [0,1]
   initial_indices.json
-  oracle_observed_objectives.npy
-  oracle_true_objectives.npy       # optional hidden file
-  metadata.json
+  oracle_true_objectives.npy       # hidden; noisy observations generated deterministically by the oracle
+  vh_data.csv                      # legacy 113-sequence reference (not the competition pool)
 ```
 
-### 13.1 `vh_sequences.csv`
+Status (2026-06-27): `vh_library.csv` (2048 seqs across ~91 donor sources),
+`oas_filtered.csv.gz` (10,200 reservoir) and `vh_latents.npy` (`[2048, 5] ⊂ [0,1]`,
+descriptor_pca backend, min pairwise distance 0.0166) are **materialized**; oracle /
+initial design are the next steps (`docs/07`).
 
-Columns:
+### 13.1 `vh_library.csv` (curated competition pool)
 
 ```text
-sequence_id,sequence,length,optional_family,optional_notes
+sequence_id,sequence,length,source,cluster_id
 ```
 
-### 13.2 `vh_latents.npy`
+2048 rows. `source` = OAS `meta_Run` (donor/run accession); `cluster_id` = curation cluster.
 
-Shape:
+### 13.2 `oas_filtered.csv.gz` (reservoir)
+
+The full ANARCII-clean filtered set the library is sampled from:
 
 ```text
-[num_sequences, latent_dim]
+sequence,source,isotype
 ```
 
-Values should be scaled to `[0, 1]`.
+~10,200 rows across ~91 donor sources. **Keep it:** `build_library.py --size N` (N up to
+~10,200) re-curates a larger pool without re-streaming OAS.
 
-### 13.3 `initial_indices.json`
+### 13.3 `vh_latents.npy`
 
-Example:
+Shape `[num_sequences, LATENT_DIM]` (LATENT_DIM = 5), values scaled to `[0, 1]`.
+
+### 13.4 `initial_indices.json`
 
 ```json
-{
-  "seed": 123,
-  "initial_ids": [1, 7, 12, 31, 44, 58, 79, 103, 145, 201, 233, 377]
-}
+{ "seed": 123, "initial_ids": ["... N_INITIAL row indices into vh_library.csv ..."] }
 ```
 
-### 13.4 Oracle objective files
+### 13.5 `oracle_true_objectives.npy` (hidden, instructor-only)
 
-If using precomputed oracle values:
-
-```text
-oracle_observed_objectives.npy: [num_sequences, 2]
-oracle_true_objectives.npy: [num_sequences, 2]
-```
-
-If using deterministic pseudo-noisy observations, store only true objectives and generate noisy observations through the oracle.
+Shape `[num_sequences, 2]`. The oracle adds **deterministic per-sequence noise** to this
+true array at evaluation time, so there is no separate "observed objectives" file.
 
 ---
 
@@ -1434,6 +1453,23 @@ Mitigations:
 4. Use deterministic restart initialization if possible.
 5. Make the expected check compare projected IDs and HV, not exact continuous latent candidates.
 6. If necessary, use a small fixed candidate set for Notebook 01 acquisition optimization, then use `optimize_acqf` with `sequential=True` in Notebook 02/03.
+
+#### Decision (2026-06-27): discrete-pool graded golden path
+
+Notebook 01's **graded** acquisition optimization uses `optimize_acqf_discrete`
+over the finite pool latents (sequential-greedy argmax, conditioning on pending
+picks) so the selected sequence IDs are decided by a **discrete ranking** that is
+robust to float-level differences across heterogeneous student CPUs. The continuous
+`optimize_acqf(..., sequential=True)` — the headline BoTorch pattern — is still
+taught, in a separate, explicitly **non-graded** syntax cell. Golden-path checks
+compare projected **IDs / new_Y / HV**, never continuous candidates.
+
+Repro caveat (BoTorch 0.18.1): `qLogNoisyExpectedHypervolumeImprovement` lazily
+JIT-compiles a fused C++ kernel on first use (needs a compiler + `ninja`) and warns
++ falls back to pure Python otherwise, so its acquisition *values* can differ at the
+float level between machines. The discrete graded path absorbs this as long as the
+top-`q` pool points have a clear acq-value margin over the rest — which the §18
+preflight verifies. See `docs/12_notebook01_golden_path.md`.
 
 ---
 
@@ -1649,19 +1685,25 @@ Before teaching, the instructor should be able to verify:
 9. The true Pareto-front reveal produces a meaningful contrast between achieved fronts and missed regions.
 
 
-## 19. Open decisions
+## 19. Decisions
 
-These can be changed later.
+**Resolved** (see linked step docs):
 
-1. Exact VH sequence dataset.
-2. Whether objectives are real labels or synthetic oracle values.
-3. Latent representation method.
-4. Latent dimension.
-5. Whether oracle noise is deterministic per sequence or per evaluation.
-6. Whether leaderboard uses noisy observed HV or hidden true HV.
-7. Whether to include full joint batch optimization as an optional comparison. Core notebooks should use sequential greedy optimization.
-8. Whether qLogNParEGO uses direct `qLogNParEGO` or an explicit list of scalarized noisy EI acquisitions.
-9. Whether diversity projection is mandatory or optional.
+1. VH dataset — OAS via the HF mirror `ConvergeBio/oas-unpaired` (human heavy, study config
+   `"Briney et al., 2019"`), 2048 curated across ~91 donors (§13, `docs/05`).
+2. Objectives — fully **synthetic** over the latents, not real labels (§4.1, `docs/07`).
+3. Latent representation — amino-acid composition + physicochemical descriptors → PCA (§13.0, `docs/06`).
+4. Latent dimension — **5**.
+5. Oracle noise — **deterministic per sequence** (§4.3, `docs/07`).
+8. qLogNParEGO — use the direct `qLogNParEGO`; scalarized cards = fixed-weight Chebyshev `qLogNParEGO`
+   (§5, `docs/09`).
+
+**Still open** (can change later):
+
+6. Leaderboard scores noisy observed HV during the run vs hidden true HV at the reveal
+   (recommended: observed during, true at debrief).
+7. Whether to offer full joint batch optimization as an optional comparison (core = sequential greedy).
+9. Whether diversity projection is mandatory or optional (default `nearest`; `diverse_nearest` optional).
 10. Whether students submit strategies live or through saved JSON files.
 
 ---
@@ -1720,3 +1762,34 @@ By the end of the practicum, students should be able to say:
 8. In latent biological design, continuous optimized candidates must be mapped back to valid designs.
 9. qLogNEHVI, qLogNParEGO, and fixed scalarization represent different campaign strategies.
 10. Comparing achieved fronts to the true Pareto front helps diagnose which acquisition functions are strong in which objective-space regions.
+
+---
+
+## 22. Implementation plan / step index
+
+This spec is executed via the ordered, independently buildable+testable step documents below (each
+with its own API, tests, and acceptance criteria). Build top to bottom; the **preflight is a hard
+gate** that locks the data assets before the golden-path values are frozen. Keep this index current as
+steps complete.
+
+| # | Step doc | Builds | Status |
+|--:|---|---|---|
+| 1 | `docs/02_foundations.md` | `mobo_lab/{__init__,config,seed}.py` | **DONE** |
+| 2 | `docs/03_metrics_plotting.md` | `mobo_lab/{metrics,plotting}.py` | **DONE** |
+| 3 | `docs/04_notebook00_warmup.md` | `notebooks/00_pareto_hypervolume_warmup.ipynb` | **DONE** |
+| 4 | `docs/05_library_curation_oas.md` | `scripts/{download_oas,build_library}.py`, `mobo_lab/data.py` (OAS → `vh_library.csv`) | **DONE** |
+| 5 | `docs/06_embeddings.md` | `scripts/build_latents.py`, `mobo_lab/embeddings.py` (`vh_latents.npy`) | **DONE** |
+| 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | TODO |
+| 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | TODO |
+| 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | TODO |
+| 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | TODO |
+| 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | TODO |
+| 11 | `docs/12_notebook01_golden_path.md` | `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb` + freeze golden constants | TODO |
+| 12 | `docs/13_notebook02_strategy_cards.md` | `notebooks/02_strategy_cards_practice.ipynb` | TODO |
+| 13 | `docs/14_competition_notebook03.md` | `mobo_lab/competition.py`, `notebooks/03_competition.ipynb` | TODO |
+| 14 | `docs/15_notebook04_extensions.md` | `notebooks/04_optional_extensions.ipynb` | TODO |
+
+Locked decisions captured above: fully-synthetic-over-latents oracle (§4.1), larger curated OAS
+library + pluggable embeddings (§13.0), discrete-pool graded golden path (§14), `LATENT_DIM = 5`
+(§3.2). Tests mirror the repo layout under `tests/` (e.g. `tests/mobo_lab/test_metrics.py`,
+`tests/scripts/test_build_library.py`).
