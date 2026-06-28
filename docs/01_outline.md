@@ -1784,7 +1784,7 @@ steps complete.
 | 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | **DONE** |
 | 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | **DONE** |
 | 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | **DONE** |
-| 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | TODO |
+| 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | **DONE** |
 | 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | TODO |
 | 11 | `docs/12_notebook01_golden_path.md` | `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb` + freeze golden constants | TODO |
 | 12 | `docs/13_notebook02_strategy_cards.md` | `notebooks/02_strategy_cards_practice.ipynb` | TODO |

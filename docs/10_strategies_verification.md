@@ -1,9 +1,31 @@
 # Step 9 — Strategy cards + verification (skeleton)
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 8 (engine), Step 7 (pool)
 **Unblocks:** preflight (Step 10), Notebook 02 (Step 12), competition (Step 13). Golden constants are
 filled in later (Step 11).
+
+**Result:** `mobo_lab/strategies.py` turns a batch plan into a validated batch.
+`validate_batch_plan` enforces non-empty, known cards, non-negative int counts,
+and sum == `batch_size` with student-friendly messages.
+`propose_batch_from_plan` fills the batch card-by-card, extending a `pending` list
+so later cards condition on earlier picks; `PoolSelector` cards
+(`random`/`uncertainty`) dispatch to `.select`, BoTorch cards to
+`optimize_discrete` (default, reproducible) or `optimize_continuous` + projection.
+It re-asserts the §10 invariants (size, distinct, none observed) before returning.
+`mobo_lab/verification.py::verify_golden_path` compares projected IDs / observed
+Y / HVs against placeholder `EXPECTED_*` constants (frozen in Step 11), checks HV
+monotonicity, prints the success line, and raises a clear "not frozen yet" error
+until the constants are set. 17 new tests; all four real-pool plans (nehvi,
+nehvi+parego, dual-scalarized, random+uncertainty) yield 4 distinct unqueried
+IDs. 158 tests total green.
+
+> **Signature notes:** added `sampler=None` (auto via `make_sampler`),
+> `bounds=None` (auto via `config.latent_bounds()`), and `seed` (for the `random`
+> card) as defaulted params so notebooks/tests can omit them; `ref_point` defaults
+> to `config.REF_POINT`. The `verify_golden_path` HV-monotonicity guard is only
+> reachable when the frozen HV pair itself decreases (exact-match makes it
+> otherwise redundant) — tested by pinning a decreasing expected pair.
 
 ## Goal
 
