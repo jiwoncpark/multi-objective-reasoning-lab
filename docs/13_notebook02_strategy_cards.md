@@ -1,8 +1,20 @@
 # Step 12 — Notebook 02: strategy-card practice
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 9 (`strategies`), Step 11 (Notebook 01 patterns + locked assets)
 **Unblocks:** the competition (students need fluency with batch plans first).
+
+**Result:** `notebooks/02_strategy_cards_practice.{py,ipynb}` reuses the Notebook 01
+setup, introduces the batch-plan dict + `validate_batch_plan`, runs one round from a
+plan, then compares six plans (`nehvi`, `parego`, `scalarized_0.8_0.2`,
+`scalarized_0.2_0.8`, `nehvi+parego`, `nehvi+random`) **all from the same observed
+state** — tabulating selected IDs, HV gain, and an objective-space spread
+(`metrics.compute_embedding_diversity` on the selected objectives), with a 2×3
+selection-scatter grid, an HV-improvement bar chart, and discussion prompts. Adds
+no new BO logic — pure orchestration over `propose_batch_from_plan` with
+`optimize="discrete"`. Each plan's invariants (BATCH_SIZE distinct unqueried IDs,
+HV non-decreasing) are asserted in-notebook. Runs headless in ~6s;
+`tests/notebooks/test_nb02_smoke.py` green; 169 tests total.
 
 ## Goal
 
