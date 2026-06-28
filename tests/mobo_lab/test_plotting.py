@@ -47,6 +47,27 @@ def test_plot_hv_curve_returns_axes():
     plt.close("all")
 
 
+def test_pareto_staircase_uses_inner_corners():
+    # Two max/max front points: the staircase must drop down at the left point's x
+    # then go right -- corner at (0.6, 0.5), NOT a phantom outer corner at (0.9, 0.95).
+    front = torch.tensor([[0.6, 0.95], [0.9, 0.5]], dtype=torch.double)
+    xs, ys = plotting._pareto_staircase(front)
+    corners = list(zip(xs, ys))
+    assert corners == [(0.6, 0.95), (0.6, 0.5), (0.9, 0.5)]
+    # the outer corner above both points must never appear
+    assert (0.9, 0.95) not in corners
+    # the polyline must stay within the points' bounding box (monotone, no overshoot)
+    assert max(xs) == 0.9 and max(ys) == 0.95
+    assert all(0.6 <= x <= 0.9 for x in xs) and all(0.5 <= y <= 0.95 for y in ys)
+
+
+def test_pareto_staircase_unsorted_input():
+    # Input order must not matter (sorted internally by objective 1).
+    a, _ = plotting._pareto_staircase(torch.tensor([[0.6, 0.95], [0.9, 0.5]], dtype=torch.double))
+    b, _ = plotting._pareto_staircase(torch.tensor([[0.9, 0.5], [0.6, 0.95]], dtype=torch.double))
+    assert a == b
+
+
 def test_plot_true_front_with_team_overlays(tmp_path):
     Y_true_all = Y_TOY
     team_runs = [

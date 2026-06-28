@@ -39,8 +39,13 @@ def _pareto_staircase(front: torch.Tensor) -> tuple[list[float], list[float]]:
     """Step coordinates tracing a max/max Pareto frontier.
 
     ``front`` holds the non-dominated points; we sort them by objective 1 ascending
-    (objective 2 then descending) and connect them with horizontal-then-vertical
-    steps, matching the upper-right staircase a maximization front forms.
+    (objective 2 then descending) and connect consecutive points with a **vertical-
+    then-horizontal** step: from the left point, drop *down* at its own objective-1
+    value to the next point's objective-2 value, then go *right*. This traces the
+    boundary of the dominated region (the attainment surface), so every corner lies
+    on the frontier and the actual front points all sit on the line -- no phantom
+    corner appears above/right of the points (which an outer, right-then-down step
+    would wrongly draw, implying undominated points are dominated).
     """
     order = torch.argsort(front[:, 0])
     xs = front[order, 0].tolist()
@@ -49,9 +54,9 @@ def _pareto_staircase(front: torch.Tensor) -> tuple[list[float], list[float]]:
     step_y: list[float] = []
     for i, (x, y) in enumerate(zip(xs, ys)):
         if i > 0:
-            step_x.append(x)
-            step_y.append(step_y[-1])
-        step_x.append(x)
+            step_x.append(step_x[-1])  # stay at the previous objective-1 value ...
+            step_y.append(y)           # ... and drop down to the new objective-2 value
+        step_x.append(x)               # then step right to this point
         step_y.append(y)
     return step_x, step_y
 
