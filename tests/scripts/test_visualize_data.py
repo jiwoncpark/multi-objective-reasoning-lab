@@ -58,6 +58,19 @@ def test_staircase_is_monotonic() -> None:
     assert (sx[-1], sy[-1]) == (3.0, 0.0)
 
 
+def test_staircase_uses_inner_corners() -> None:
+    # Between (0.6, 0.95) and (0.9, 0.5) the corner must be the inner (0.6, 0.5),
+    # not a phantom outer corner at (0.9, 0.95) above both points.
+    x = np.array([0.6, 0.9])
+    y = np.array([0.95, 0.5])
+    sx, sy = _pareto_staircase(x, y)
+    corners = list(zip(sx.tolist(), sy.tolist()))
+    assert corners == [(0.6, 0.95), (0.6, 0.5), (0.9, 0.5)]
+    assert (0.9, 0.95) not in corners
+    # the polyline never rises above the points' bounding box
+    assert sy.max() == 0.95 and sx.max() == 0.9
+
+
 def test_nearest_neighbor_distances_known_points() -> None:
     # NN of (0,0) is (0,3) at 3; of (0,3) is (0,0) at 3; of (4,0) is (0,0) at 4.
     pts = np.array([[0.0, 0.0], [0.0, 3.0], [4.0, 0.0]])

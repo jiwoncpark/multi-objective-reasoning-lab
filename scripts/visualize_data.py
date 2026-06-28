@@ -209,18 +209,22 @@ def _pareto_front_2d_max(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def _pareto_staircase(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Staircase coordinates tracing the upper-right (max/max) Pareto frontier.
+    """Staircase coordinates tracing the (max/max) Pareto frontier.
 
     Given the non-dominated points, sort by x ascending (y then descends) and
-    connect them with horizontal-then-vertical steps, so the line bounds the
-    dominated region the way a Pareto front is usually drawn.
+    connect consecutive points with a **vertical-then-horizontal** step: drop
+    *down* at the left point's x to the next point's y, then go *right*. This traces
+    the boundary of the dominated region (the attainment surface), so every corner
+    lies on the frontier and the actual points all sit on the line -- no phantom
+    corner appears above/right of the points (which a right-then-down step would
+    wrongly draw, implying undominated points are dominated).
     """
     order = np.argsort(x)
     xs, ys = x[order], y[order]
     step_x, step_y = [xs[0]], [ys[0]]
     for k in range(1, len(xs)):
-        step_x.extend([xs[k], xs[k]])   # move right, then down
-        step_y.extend([ys[k - 1], ys[k]])
+        step_x.extend([xs[k - 1], xs[k]])   # drop down at the previous x, then move right
+        step_y.extend([ys[k], ys[k]])
     return np.asarray(step_x), np.asarray(step_y)
 
 
