@@ -351,25 +351,36 @@ def evaluate_criteria(
         )
     )
 
-    # 4. fixed scalarization concentrates more than nehvi.
+    # Criteria 4 & 5 are scored on *region coverage* (how many objective-space
+    # regions a strategy's selections touch), not angular spread. Coverage is the
+    # stable discriminator across seeds; angular spread of the selected points is
+    # too noisy to separate fixed-weight from random-weight ParEGO (their selected
+    # points sit at similar angles). Angular spread is still reported for context.
+    scal_cov = sweep["all_scalarized_0.8_0.2"]["region_coverage_mean"]
+    nehvi_cov = sweep["all_nehvi"]["region_coverage_mean"]
+    parego_cov = sweep["all_parego"]["region_coverage_mean"]
     scal_spread = sweep["all_scalarized_0.8_0.2"]["angular_spread_mean"]
     nehvi_spread = sweep["all_nehvi"]["angular_spread_mean"]
+    parego_spread = sweep["all_parego"]["angular_spread_mean"]
+
+    # 4. fixed scalarization touches fewer objective-space regions than nehvi.
     crit.append(
         Criterion(
             "4. fixed scalarization concentrates",
-            scal_spread < nehvi_spread,
-            f"angular spread scalarized_0.8_0.2 {scal_spread:.3f} < nehvi {nehvi_spread:.3f}",
+            scal_cov < nehvi_cov,
+            f"region coverage scalarized_0.8_0.2 {scal_cov:.2f} < nehvi {nehvi_cov:.2f} "
+            f"(angular spread {scal_spread:.3f} vs {nehvi_spread:.3f})",
             hint="weights not steering: increase front concavity / rotation (Step 6)",
         )
     )
 
-    # 5. ParEGO explores a wider set of trade-offs than fixed scalarization.
-    parego_spread = sweep["all_parego"]["angular_spread_mean"]
+    # 5. ParEGO explores more trade-off regions than fixed scalarization.
     crit.append(
         Criterion(
             "5. ParEGO explores varied trade-offs",
-            parego_spread > scal_spread,
-            f"angular spread parego {parego_spread:.3f} > scalarized_0.8_0.2 {scal_spread:.3f}",
+            parego_cov > scal_cov,
+            f"region coverage parego {parego_cov:.2f} > scalarized_0.8_0.2 {scal_cov:.2f} "
+            f"(angular spread {parego_spread:.3f} vs {scal_spread:.3f})",
             hint="front too narrow for varied weights to matter: widen front regions (Step 6)",
         )
     )

@@ -20,10 +20,12 @@ achievable max**, i.e. ~60% headroom for the competition. 16 tests green.
 > preflight shows strategies separate too early or too late.
 >
 > **Update (2026-06-28): GATE PASSED.** The Step 10 preflight passed all §18.4 criteria on the
-> current oracle/initial design (see `docs/11`). One narrow margin remains tied to this knob:
-> criterion 5 (ParEGO spreads more than fixed scalarization) passes only just (angular spread
-> 0.119 vs 0.112) because front concavity is mild. If a stronger ParEGO-vs-fixed contrast is
-> desired, raise the concavity / bump separation here and re-run the gate; not required to freeze.
+> current oracle/initial design (see `docs/11`). The earlier "criterion 5 passes narrowly" note is
+> **resolved and was not a concavity problem**: deepening the central valley does not widen the
+> ParEGO-vs-fixed gap (the angular-spread margin is seed-noise; over-deepening even shrinks the
+> front to 5 points). The gate now scores criteria 4 & 5 on **region coverage**, which is the stable
+> cross-seed discriminator (ParEGO ≥ fixed in every seed). So this concavity knob is left **as-is**;
+> the oracle and the frozen golden constants are unchanged.
 
 ## Goal
 
