@@ -18,6 +18,12 @@ achievable max**, i.e. ~60% headroom for the competition. 16 tests green.
 > fairly convex (concavity is mild), tunable via `oracle_params.json` without code changes. The
 > initial-design headroom is now generous (40% of max); `--max-quantile` can retune it if the
 > preflight shows strategies separate too early or too late.
+>
+> **Update (2026-06-28): GATE PASSED.** The Step 10 preflight passed all §18.4 criteria on the
+> current oracle/initial design (see `docs/11`). One narrow margin remains tied to this knob:
+> criterion 5 (ParEGO spreads more than fixed scalarization) passes only just (angular spread
+> 0.119 vs 0.112) because front concavity is mild. If a stronger ParEGO-vs-fixed contrast is
+> desired, raise the concavity / bump separation here and re-run the gate; not required to freeze.
 
 ## Goal
 

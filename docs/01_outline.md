@@ -1785,7 +1785,7 @@ steps complete.
 | 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | **DONE** |
 | 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | **DONE** |
 | 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | **DONE** |
-| 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | TODO |
+| 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | **DONE (PASSED)** |
 | 11 | `docs/12_notebook01_golden_path.md` | `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb` + freeze golden constants | TODO |
 | 12 | `docs/13_notebook02_strategy_cards.md` | `notebooks/02_strategy_cards_practice.ipynb` | TODO |
 | 13 | `docs/14_competition_notebook03.md` | `mobo_lab/competition.py`, `notebooks/03_competition.ipynb` | TODO |

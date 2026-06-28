@@ -1,10 +1,39 @@
 # Step 10 — Instructor preflight: difficulty calibration (GATE)
 
-**Status:** TODO
+**Status:** DONE — GATE PASSED (2026-06-28)
 **Depends on:** Step 9 (strategies), Step 8 (engine), Steps 4–6 (data assets)
 **Unblocks:** the golden-path freeze (Step 11) and the competition (Step 13).
 **This is a hard gate:** golden values are not frozen and the lab is not taught until preflight passes.
 A failure loops back to Steps 5–6 (retune embedding/oracle) or Step 4 (re-curate the library).
+
+**Result:** `scripts/preflight_sweep.py` sweeps 7 strategies × 3 seeds × 6 rounds on
+the real 2048-sequence pool and **all §18.4 criteria PASS** (run 2026-06-28):
+
+| metric (mean) | AUC-HV | finalHV | angSpr | cover | nondom |
+|---|---|---|---|---|---|
+| all_nehvi | 0.8503 | 1.0147 | 0.248 | 4.7 | 7.0 |
+| all_scalarized_0.8_0.2 | 0.8474 | 0.9761 | 0.112 | 2.0 | 4.7 |
+| all_parego | 0.8358 | 0.9853 | 0.119 | 2.7 | 4.0 |
+| explore_then_exploit | 0.8292 | 1.0038 | 0.221 | 4.7 | 6.0 |
+| scalarization_sweep | 0.8288 | 0.9971 | 0.173 | 3.0 | 5.0 |
+| mixed | 0.8280 | 1.0057 | 0.210 | 4.0 | 6.0 |
+| random_baseline | 0.6840 | 0.8071 | 0.268 | 5.0 | 2.3 |
+
+Highlights: nehvi clearly beats random (0.850 vs 0.684); fixed scalarization
+concentrates (angSpr 0.112 vs nehvi 0.248); a mixed strategy beats all_nehvi in
+some seeds (mixed 2/3, parego 2/3, explore 1/3); leaderboard not predetermined
+(2 distinct per-seed winners, top-two mean gap 0.0029); full campaign in ~5.6s;
+discrete acq margin q-vs-(q+1) abs 0.037 (rel 9.3e-4); achieved-vs-true at 99% of
+max HV. Plots in `outputs/preflight/{hv_curves,selection_coverage}.png`. Shrunk
+test (`tests/scripts/test_preflight_sweep.py`) green; 165 tests total.
+
+> **Watch-item for Step 11 / Step 6:** criterion 5 (ParEGO explores more than
+> fixed scalarization) passes **narrowly** — angSpr 0.119 vs 0.112. The front is
+> only mildly concave, so random ParEGO weights don't spread selections much more
+> than a fixed weight. It is safe to freeze, but if a wider ParEGO signal is
+> wanted, increase the oracle front concavity / bump separation in Step 6 and
+> re-run the gate. The discrete-path reproducibility (which Notebook 01 relies on)
+> is unaffected.
 
 ## Goal
 
