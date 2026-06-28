@@ -1,8 +1,32 @@
 # Step 8 — BO engine: models + acquisitions + optimize
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 1 (`config`), Step 7 (`pool`)
 **Unblocks:** strategies (Step 9), preflight (Step 10), all BO notebooks.
+
+**Result:** three modules verified against **BoTorch 0.18.1**.
+`mobo_lab/models.py::fit_surrogate_model` returns a `ModelListGP` of per-objective
+`SingleTaskGP`s (Normalize input + Standardize output), optional known-noise via
+`train_Yvar`; posterior mean/variance are `[n, NUM_OBJECTIVES]`.
+`mobo_lab/acquisitions.py::build_acquisition` is the strategy-card factory for all
+seven names — `nehvi` (qLogNEHVI), `parego` (random-weight qLogNParEGO),
+`scalarized_{0.5_0.5,0.8_0.2,0.2_0.8}` (fixed-weight qLogNParEGO via
+`build_fixed_scalarized_qlognei`), and two `PoolSelector` cards (`random`,
+`uncertainty`) that pick pool IDs directly. A seeded `make_sampler` helper feeds
+every MC acquisition. `mobo_lab/optimize.py` provides `optimize_continuous`
+(taught, `optimize_acqf(sequential=True)`) and `optimize_discrete` (graded,
+`optimize_acqf_discrete` over `pool.X` with `X_avoid`); the latter also dispatches
+`PoolSelector` cards and returns **exact** IDs (`candidates == pool.X[ids]`) by
+identity-projecting the chosen rows. 21 new tests; full mini-loop on the real
+2048-row pool (fit → nehvi → discrete → 4 unqueried IDs, plus the continuous +
+projection path) runs in ~3s. 141 tests total green.
+
+> **Naming:** the optimizer functions are `optimize_continuous` /
+> `optimize_discrete` (docs/09), superseding the outline §12.8 working name
+> `optimize_continuous_acquisition`. Outline updated to match.
+> **`random`/`uncertainty`:** modelled as `PoolSelector` objects rather than
+> BoTorch acquisitions, so `build_acquisition` returns them and `optimize_discrete`
+> calls `.select(...)`; `optimize_continuous` rejects them (no continuous form).
 
 ## Goal
 

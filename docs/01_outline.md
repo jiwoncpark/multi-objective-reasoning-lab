@@ -1228,21 +1228,20 @@ Required names:
 
 ### 12.8 `optimize.py`
 
-Expose:
+Expose (names finalized in Step 8 / docs/09):
 
 ```python
-def optimize_continuous_acquisition(
-    acq_func,
-    bounds,
-    q: int,
-    num_restarts: int,
-    raw_samples: int,
-    sequential: bool = True,
-):
-    ...
+def optimize_continuous(acq_func, bounds, q, num_restarts, raw_samples, sequential=True):
+    ...  # wraps optimize_acqf; sequential=True default for all core notebooks
+
+def optimize_discrete(acq_func, pool, q, observed_ids=(), pending_ids=()):
+    ...  # wraps optimize_acqf_discrete (graded golden path); returns exact pool IDs
 ```
 
-This wraps `optimize_acqf`. The default should be `sequential=True` for all core notebooks.
+`optimize_continuous` wraps `optimize_acqf` (the taught path). `optimize_discrete`
+wraps `optimize_acqf_discrete` over `pool.X` with `X_avoid` and is the reproducible
+graded path; both also accept the `random`/`uncertainty` `PoolSelector` cards
+(`optimize_discrete` dispatches to `.select`; `optimize_continuous` rejects them).
 
 ### 12.9 `strategies.py`
 
@@ -1784,7 +1783,7 @@ steps complete.
 | 5 | `docs/06_embeddings.md` | `scripts/build_latents.py`, `mobo_lab/embeddings.py` (`vh_latents.npy`) | **DONE** |
 | 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | **DONE** |
 | 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | **DONE** |
-| 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | TODO |
+| 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | **DONE** |
 | 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | TODO |
 | 10 | `docs/11_preflight_calibration.md` | `scripts/preflight_sweep.py` — **GATE** | TODO |
 | 11 | `docs/12_notebook01_golden_path.md` | `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb` + freeze golden constants | TODO |
