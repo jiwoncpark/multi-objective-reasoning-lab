@@ -45,3 +45,19 @@ def test_plot_hv_curve_returns_axes():
     ax = plotting.plot_hv_curve([0.0, 1.0, 1.5, 2.0])
     assert isinstance(ax, plt.Axes)
     plt.close("all")
+
+
+def test_plot_true_front_with_team_overlays(tmp_path):
+    Y_true_all = Y_TOY
+    team_runs = [
+        {"team_name": "A", "selected_ids": [0, 1], "final_hv": 0.5},
+        {"team_name": "B", "selected_ids": [3], "final_hv": 0.4},
+    ]
+    out = tmp_path / "overlay.png"
+    ax = plotting.plot_true_front_with_team_overlays(
+        Y_true_all, initial_ids=[4, 5], team_runs=team_runs,
+        ref_point=[-0.05, -0.05], output_path=out,
+    )
+    assert isinstance(ax, plt.Axes)
+    assert out.exists()
+    plt.close("all")

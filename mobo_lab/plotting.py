@@ -140,3 +140,62 @@ def plot_hv_curve(
     if title:
         ax.set_title(title)
     return ax
+
+
+def plot_true_front_with_team_overlays(
+    Y_true_all: torch.Tensor,
+    initial_ids: Sequence[int],
+    team_runs: Sequence[dict],
+    ref_point,
+    output_path=None,
+    ax: plt.Axes | None = None,
+) -> plt.Axes:
+    """The instructor reveal: true Pareto front with each team's achievement on top.
+
+    Layers (outline §10): all candidates in *true* objective space (gray), the true
+    Pareto front (black staircase), the shared initial design (outlined), and per
+    team -- their selected points (faint) and their achieved non-dominated front
+    (colored). ``team_runs`` are the history dicts from
+    :func:`mobo_lab.competition.load_team_runs` (each needs ``team_name`` and
+    ``selected_ids``). If ``output_path`` is given the figure is saved there.
+    """
+    ax = _new_ax(ax)
+    Y = torch.as_tensor(Y_true_all, dtype=torch.double)
+    initial_ids = [int(i) for i in initial_ids]
+
+    ax.scatter(Y[:, 0], Y[:, 1], color="lightgray", s=12, zorder=1, label="all candidates (true)")
+
+    front = metrics.compute_true_pareto_front(Y)
+    step_x, step_y = _pareto_staircase(front)
+    ax.plot(step_x, step_y, color="black", linewidth=2.0, zorder=3, label="true Pareto front")
+    ax.scatter(front[:, 0], front[:, 1], color="black", s=30, zorder=3)
+
+    init = Y[initial_ids]
+    ax.scatter(
+        init[:, 0], init[:, 1], facecolors="none", edgecolors="dimgray",
+        s=90, linewidths=1.5, zorder=4, label="initial design",
+    )
+
+    palette = plt.get_cmap("tab10").colors
+    for i, run in enumerate(team_runs):
+        color = palette[i % len(palette)]
+        selected = [int(j) for j in run["selected_ids"]]
+        name = run.get("team_name", f"team {i}")
+        if selected:
+            sel_Y = Y[selected]
+            ax.scatter(sel_Y[:, 0], sel_Y[:, 1], color=color, s=18, alpha=0.25, zorder=2)
+        team_Y = Y[initial_ids + selected]
+        team_front = metrics.compute_true_pareto_front(team_Y)
+        fx, fy = _pareto_staircase(team_front)
+        label = f"{name} (HV {run.get('final_hv', float('nan')):.3f})"
+        ax.plot(fx, fy, color=color, linewidth=1.5, zorder=5, label=label)
+        ax.scatter(team_front[:, 0], team_front[:, 1], color=color, s=40, zorder=5)
+
+    _mark_ref_point(ax, ref_point)
+    ax.set_xlabel("objective 1 (true, higher is better)")
+    ax.set_ylabel("objective 2 (true, higher is better)")
+    ax.set_title("True Pareto front vs team achievements")
+    ax.legend(loc="best", fontsize="x-small")
+    if output_path is not None:
+        ax.figure.savefig(output_path, dpi=120, bbox_inches="tight")
+    return ax

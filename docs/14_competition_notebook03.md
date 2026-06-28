@@ -1,8 +1,30 @@
 # Step 13 — Competition module + Notebook 03 (+ true-front reveal)
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 9 (`strategies`), Step 11 (locked assets), Steps 2–8.
 **Unblocks:** the live competition and the final debrief; Notebook 04 builds on it.
+
+**Result:** `mobo_lab/competition.py` provides `run_campaign` (multi-round driver
+around `propose_batch_from_plan` — loads the locked pool/oracle(`allow_true=False`)/
+initial design itself; validates each plan and the round count up front; enforces
+the §10 guards: fixed batch size, no duplicate/observed IDs; returns a history dict
+with per-round ids/Y/hv, `hv_history`, `auc_hv`, `final_hv`, `n_nondominated_selected`,
+`embedding_diversity`), `save_run_outputs` (JSON + per-round CSV + pareto/hv PNGs,
+latest-wins by team slug), `load_team_runs`, `update_leaderboard` (ranked by AUC-HV
+then tie-breakers), and `build_final_debrief_report` (writes `leaderboard.csv` +
+`final_true_pareto_overlay.png`). `plotting.plot_true_front_with_team_overlays`
+draws the reveal layers. `notebooks/03_competition.{py,ipynb}` has the briefing,
+locked setup, the single editable `TEAM_STRATEGY` cell (validated), the run +
+results plots, the leaderboard, and the clearly-marked instructor reveal +
+debrief prompts. Full 6-round real campaign + reveal runs headless in ~9s
+(AUC-HV 0.866, final HV 1.013, round-1 HV 0.5688 matches the frozen golden path).
+`tests/mobo_lab/test_competition.py` (8) + plotting + nb03 smoke green; 179 total.
+
+> **`run_campaign` signature:** kept the doc's `(team_strategy, team_name, seed,
+> projection_method)` and added keyword-only `pool/oracle/initial_ids/n_rounds/
+> ref_point` (default to the locked files) so tests inject tiny fixtures without
+> touching the student-facing call. Run files are `{slug}_run.json` (no run-id;
+> latest wins) per the Step 13 spec.
 
 ## Goal
 
