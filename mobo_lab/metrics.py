@@ -75,3 +75,38 @@ def compute_true_pareto_front(Y_true_all: torch.Tensor) -> torch.Tensor:
     front = Y_true_all[mask]
     order = torch.argsort(front[:, 0])
     return front[order]
+
+
+def pareto_staircase(x, y) -> tuple[list[float], list[float]]:
+    """Step coordinates tracing a max/max Pareto frontier, for plotting.
+
+    Given the two objective columns of the non-dominated points (any 1-D
+    array-likes -- tensors, numpy arrays, or lists), sort by objective 1 ascending
+    (objective 2 then descends) and connect consecutive points with a **vertical-
+    then-horizontal** step: drop *down* at the left point's objective-1 value to the
+    next point's objective-2 value, then go *right*.
+
+    This traces the boundary of the dominated region (the attainment surface), so
+    every corner lies on the frontier and the actual front points all sit on the
+    returned polyline -- no phantom corner appears above/right of the points (which
+    a right-then-down step would wrongly draw, implying undominated points are
+    dominated). Returns ``([], [])`` for empty input.
+
+    This is the single source of truth for the frontier polyline; both
+    :mod:`mobo_lab.plotting` and ``scripts/visualize_data.py`` use it.
+    """
+    xs = [float(v) for v in x]
+    ys = [float(v) for v in y]
+    if not xs:
+        return [], []
+    order = sorted(range(len(xs)), key=lambda i: xs[i])
+    xs = [xs[i] for i in order]
+    ys = [ys[i] for i in order]
+    step_x = [xs[0]]
+    step_y = [ys[0]]
+    for i in range(1, len(xs)):
+        step_x.append(step_x[-1])  # stay at the previous objective-1 value ...
+        step_y.append(ys[i])       # ... and drop down to the new objective-2 value
+        step_x.append(xs[i])       # then step right to this point
+        step_y.append(ys[i])
+    return step_x, step_y

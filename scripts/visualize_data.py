@@ -76,6 +76,7 @@ from parse_data import DEFAULT_OUTPUT, STANDARD_AMINO_ACIDS, parse_vh_data  # no
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 from mobo_lab import config  # noqa: E402
+from mobo_lab.metrics import pareto_staircase  # noqa: E402
 
 DEFAULT_OUTDIR = REPO_ROOT / "docs" / "figures"
 
@@ -208,26 +209,6 @@ def _pareto_front_2d_max(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return ~dominated
 
 
-def _pareto_staircase(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Staircase coordinates tracing the (max/max) Pareto frontier.
-
-    Given the non-dominated points, sort by x ascending (y then descends) and
-    connect consecutive points with a **vertical-then-horizontal** step: drop
-    *down* at the left point's x to the next point's y, then go *right*. This traces
-    the boundary of the dominated region (the attainment surface), so every corner
-    lies on the frontier and the actual points all sit on the line -- no phantom
-    corner appears above/right of the points (which a right-then-down step would
-    wrongly draw, implying undominated points are dominated).
-    """
-    order = np.argsort(x)
-    xs, ys = x[order], y[order]
-    step_x, step_y = [xs[0]], [ys[0]]
-    for k in range(1, len(xs)):
-        step_x.extend([xs[k - 1], xs[k]])   # drop down at the previous x, then move right
-        step_y.extend([ys[k], ys[k]])
-    return np.asarray(step_x), np.asarray(step_y)
-
-
 def plot_property_tradeoffs(df: pd.DataFrame, outdir: Path) -> Path:
     """Corner plot of all property pairs, with the 2D Pareto front in each panel.
 
@@ -271,7 +252,7 @@ def plot_property_tradeoffs(df: pd.DataFrame, outdir: Path) -> Path:
                 ax.scatter(x, y, s=22, color="#B0B0B0", edgecolor="none", alpha=0.7)
 
                 front = _pareto_front_2d_max(x, y)
-                step_x, step_y = _pareto_staircase(x[front], y[front])
+                step_x, step_y = pareto_staircase(x[front], y[front])
                 ax.plot(step_x, step_y, color="#C44E52", linewidth=1.5, zorder=2)
                 ax.scatter(
                     x[front], y[front], s=42, color="#C44E52",
@@ -478,7 +459,7 @@ def plot_objective_space(
 
     # true Pareto front: staircase + points
     fx, fy = Y[mask, 0], Y[mask, 1]
-    step_x, step_y = _pareto_staircase(fx, fy)
+    step_x, step_y = pareto_staircase(fx, fy)
     ax.plot(step_x, step_y, color="#C44E52", linewidth=2, zorder=3)
     ax.scatter(fx, fy, s=55, color="#C44E52", edgecolor="k", linewidth=0.5,
                zorder=5, label=f"true Pareto front ({int(mask.sum())})")

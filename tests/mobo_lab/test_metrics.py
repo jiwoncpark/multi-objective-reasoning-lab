@@ -95,3 +95,44 @@ def test_true_pareto_front_points_sorted():
     assert torch.all(front[1:, 0] >= front[:-1, 0])
     # (0.3, 0.3) (the only dominated point) must be absent
     assert not any(torch.allclose(row, torch.tensor([0.3, 0.3], dtype=torch.double)) for row in front)
+
+
+# -- pareto_staircase (shared frontier polyline) ---------------------------- #
+def test_staircase_uses_inner_corners():
+    # Between (0.6, 0.95) and (0.9, 0.5) the corner must be the inner (0.6, 0.5),
+    # not a phantom outer corner at (0.9, 0.95) above both points.
+    sx, sy = metrics.pareto_staircase([0.6, 0.9], [0.95, 0.5])
+    corners = list(zip(sx, sy))
+    assert corners == [(0.6, 0.95), (0.6, 0.5), (0.9, 0.5)]
+    assert (0.9, 0.95) not in corners
+    # the polyline never rises above the points' bounding box
+    assert max(sy) == 0.95 and max(sx) == 0.9
+
+
+def test_staircase_is_monotonic():
+    # Sorted by x ascending: x non-decreasing, y non-increasing along the trace.
+    sx, sy = metrics.pareto_staircase([0.0, 1.0, 2.0, 3.0], [3.0, 2.0, 1.0, 0.0])
+    assert all(b >= a for a, b in zip(sx, sx[1:]))
+    assert all(b <= a for a, b in zip(sy, sy[1:]))
+    assert (sx[0], sy[0]) == (0.0, 3.0)
+    assert (sx[-1], sy[-1]) == (3.0, 0.0)
+
+
+def test_staircase_order_invariant_and_passes_through_points():
+    a = metrics.pareto_staircase([0.6, 0.9], [0.95, 0.5])
+    b = metrics.pareto_staircase([0.9, 0.6], [0.5, 0.95])  # same points, shuffled
+    assert a == b
+    corners = set(zip(*a))
+    assert (0.6, 0.95) in corners and (0.9, 0.5) in corners  # both front points on the line
+
+
+def test_staircase_edge_cases():
+    assert metrics.pareto_staircase([], []) == ([], [])
+    assert metrics.pareto_staircase([0.4], [0.7]) == ([0.4], [0.7])  # single point
+
+
+def test_staircase_accepts_tensors():
+    # Works on tensor columns (the plotting call path) identically to lists.
+    front = torch.tensor([[0.6, 0.95], [0.9, 0.5]], dtype=torch.double)
+    sx, sy = metrics.pareto_staircase(front[:, 0], front[:, 1])
+    assert list(zip(sx, sy)) == [(0.6, 0.95), (0.6, 0.5), (0.9, 0.5)]

@@ -35,32 +35,6 @@ def _mark_ref_point(ax: plt.Axes, ref_point) -> None:
     )
 
 
-def _pareto_staircase(front: torch.Tensor) -> tuple[list[float], list[float]]:
-    """Step coordinates tracing a max/max Pareto frontier.
-
-    ``front`` holds the non-dominated points; we sort them by objective 1 ascending
-    (objective 2 then descending) and connect consecutive points with a **vertical-
-    then-horizontal** step: from the left point, drop *down* at its own objective-1
-    value to the next point's objective-2 value, then go *right*. This traces the
-    boundary of the dominated region (the attainment surface), so every corner lies
-    on the frontier and the actual front points all sit on the line -- no phantom
-    corner appears above/right of the points (which an outer, right-then-down step
-    would wrongly draw, implying undominated points are dominated).
-    """
-    order = torch.argsort(front[:, 0])
-    xs = front[order, 0].tolist()
-    ys = front[order, 1].tolist()
-    step_x: list[float] = []
-    step_y: list[float] = []
-    for i, (x, y) in enumerate(zip(xs, ys)):
-        if i > 0:
-            step_x.append(step_x[-1])  # stay at the previous objective-1 value ...
-            step_y.append(y)           # ... and drop down to the new objective-2 value
-        step_x.append(x)               # then step right to this point
-        step_y.append(y)
-    return step_x, step_y
-
-
 def plot_objective_space(
     Y: torch.Tensor,
     pareto_mask: torch.Tensor | None = None,
@@ -104,7 +78,7 @@ def plot_pareto_front(
     mask = metrics.compute_pareto_mask(Y)
     front = Y[mask]
     if front.shape[0] >= 1:
-        step_x, step_y = _pareto_staircase(front)
+        step_x, step_y = metrics.pareto_staircase(front[:, 0], front[:, 1])
         ax.plot(step_x, step_y, color="tab:red", linewidth=1.5, zorder=2)
         ax.scatter(
             front[:, 0], front[:, 1], color="tab:red", zorder=3, label="Pareto front"
@@ -171,7 +145,7 @@ def plot_true_front_with_team_overlays(
     ax.scatter(Y[:, 0], Y[:, 1], color="lightgray", s=12, zorder=1, label="all candidates (true)")
 
     front = metrics.compute_true_pareto_front(Y)
-    step_x, step_y = _pareto_staircase(front)
+    step_x, step_y = metrics.pareto_staircase(front[:, 0], front[:, 1])
     ax.plot(step_x, step_y, color="black", linewidth=2.0, zorder=3, label="true Pareto front")
     ax.scatter(front[:, 0], front[:, 1], color="black", s=30, zorder=3)
 
@@ -191,7 +165,7 @@ def plot_true_front_with_team_overlays(
             ax.scatter(sel_Y[:, 0], sel_Y[:, 1], color=color, s=18, alpha=0.25, zorder=2)
         team_Y = Y[initial_ids + selected]
         team_front = metrics.compute_true_pareto_front(team_Y)
-        fx, fy = _pareto_staircase(team_front)
+        fx, fy = metrics.pareto_staircase(team_front[:, 0], team_front[:, 1])
         label = f"{name} (HV {run.get('final_hv', float('nan')):.3f})"
         ax.plot(fx, fy, color=color, linewidth=1.5, zorder=5, label=label)
         ax.scatter(team_front[:, 0], team_front[:, 1], color=color, s=40, zorder=5)
