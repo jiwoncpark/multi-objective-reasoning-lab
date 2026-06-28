@@ -155,6 +155,39 @@ def parse_scalarized_weights(name: str) -> list[float]:
     return [float(p) for p in parts]
 
 
+def format_scalarized_name(weights) -> str:
+    """``[0.8, 0.2]`` -> ``"scalarized_0.8_0.2"`` (inverse of :func:`parse_scalarized_weights`).
+
+    Lets the extensions notebook turn a per-round weight vector into a card name
+    without hand-formatting. The output round-trips through
+    :func:`parse_scalarized_weights`.
+    """
+    weights = [float(w) for w in weights]
+    if len(weights) != config.NUM_OBJECTIVES:
+        raise ValueError(
+            f"weights must have {config.NUM_OBJECTIVES} entries, got {len(weights)}"
+        )
+    return "scalarized_" + "_".join(f"{w:g}" for w in weights)
+
+
+def is_known_card(name: str) -> bool:
+    """True for a named card or any well-formed ``scalarized_<w1>_<w2>`` card.
+
+    Custom fixed weights (e.g. ``scalarized_0.7_0.3``) are not in
+    :data:`STRATEGY_NAMES` but are valid -- :func:`build_acquisition` builds them
+    by parsing the name -- so plan validation accepts them too.
+    """
+    if name in STRATEGY_NAMES:
+        return True
+    if name.startswith("scalarized_"):
+        try:
+            parse_scalarized_weights(name)
+            return True
+        except (ValueError, IndexError):
+            return False
+    return False
+
+
 def build_acquisition(
     name: str,
     model,

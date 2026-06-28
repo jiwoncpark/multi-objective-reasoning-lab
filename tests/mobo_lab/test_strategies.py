@@ -45,6 +45,11 @@ def test_validate_accepts_good_plan():
     validate_batch_plan({"nehvi": 2, "parego": 2}, batch_size=4)  # no raise
 
 
+def test_validate_accepts_custom_scalarized_weights():
+    # Custom fixed weights (not one of the three named cards) are valid.
+    validate_batch_plan({"scalarized_0.7_0.3": 4}, batch_size=4)  # no raise
+
+
 # -- propose_batch_from_plan ------------------------------------------------ #
 def _check_batch(ids, observed):
     assert len(ids) == config.BATCH_SIZE

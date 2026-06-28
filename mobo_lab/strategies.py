@@ -25,7 +25,13 @@ import torch
 from torch import Tensor
 
 from . import config
-from .acquisitions import STRATEGY_NAMES, PoolSelector, build_acquisition, make_sampler
+from .acquisitions import (
+    STRATEGY_NAMES,
+    PoolSelector,
+    build_acquisition,
+    is_known_card,
+    make_sampler,
+)
 from .optimize import optimize_continuous, optimize_discrete
 
 
@@ -42,10 +48,11 @@ def validate_batch_plan(
             f"batch plan is empty; it must assign {batch_size} slots across "
             f"strategy cards, e.g. {{'nehvi': {batch_size}}}."
         )
-    unknown = [name for name in batch_plan if name not in STRATEGY_NAMES]
+    unknown = [name for name in batch_plan if not is_known_card(name)]
     if unknown:
         raise ValueError(
-            f"unknown strategy card(s) {unknown}; valid cards are {sorted(STRATEGY_NAMES)}."
+            f"unknown strategy card(s) {unknown}; valid cards are {sorted(STRATEGY_NAMES)} "
+            "(or any scalarized_<w1>_<w2> with custom weights)."
         )
     bad = [name for name, k in batch_plan.items() if not isinstance(k, int) or k < 0]
     if bad:

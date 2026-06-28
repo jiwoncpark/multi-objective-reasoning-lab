@@ -1,8 +1,25 @@
 # Step 14 — Notebook 04: optional extensions
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 13 (competition module + Notebook 03)
 **Unblocks:** nothing (terminal, for faster/advanced groups).
+
+**Result:** `notebooks/04_optional_extensions.{py,ipynb}` — four independent,
+heavily-scaffolded sections, each a `competition.run_campaign` vs a baseline with a
+comparison table/plot: (1) custom per-round scalarization schedule (via the new
+`acquisitions.format_scalarized_name`); (2) explore→exploit vs all-NEHVI; (3)
+`nearest` vs `diverse_nearest` on the continuous path; (4) conceptual
+information-theoretic discussion + one `uncertainty`-card run. No new core BO code.
+Observed contrasts on the real pool: changing weights 0.848 > fixed 0.788 AUC-HV;
+diverse_nearest 0.813 > nearest 0.796; uncertainty-first 0.951 AUC-HV (a nice
+exploration win). Runs headless in ~50s; `tests/notebooks/test_nb04_smoke.py` green.
+
+> **Supporting changes (this step):** `acquisitions.format_scalarized_name` (inverse
+> of `parse_scalarized_weights`) and `is_known_card`, and `validate_batch_plan` now
+> accepts **any** well-formed `scalarized_<w1>_<w2>` card (not just the three named
+> ones) so custom weight schedules validate. `competition.run_campaign` gained an
+> `optimize="discrete"|"continuous"` keyword so section 3 can exercise projection on
+> the continuous path. 187 tests total green.
 
 ## Goal
 

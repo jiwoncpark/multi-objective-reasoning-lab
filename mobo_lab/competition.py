@@ -57,6 +57,7 @@ def run_campaign(
     initial_ids: list[int] | None = None,
     n_rounds: int | None = None,
     ref_point=config.REF_POINT,
+    optimize: str = "discrete",
 ) -> dict:
     """Run a team's ``n_rounds``-round campaign and return its history dict.
 
@@ -64,6 +65,10 @@ def run_campaign(
     the locked data files unless injected (tests do inject tiny fixtures). The
     oracle is always built ``allow_true=False``. ``team_strategy`` must have exactly
     ``n_rounds`` plans, each summing to ``BATCH_SIZE``.
+
+    ``optimize`` defaults to ``"discrete"`` (the reproducible competition path);
+    ``"continuous"`` runs the continuous optimizer + projection, which is where
+    ``projection_method`` takes effect (used by the extensions notebook).
     """
     if pool is None:
         pool = VHSequencePool.from_files()
@@ -99,7 +104,8 @@ def run_campaign(
 
         new_ids = propose_batch_from_plan(
             plan, model, pool, observed_ids, train_X, train_Y,
-            ref_point=ref_point, projection_method=projection_method, seed=seed + r,
+            ref_point=ref_point, projection_method=projection_method,
+            optimize=optimize, seed=seed + r,
         )
         new_Y = oracle.evaluate(new_ids)
 

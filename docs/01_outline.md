@@ -1789,7 +1789,7 @@ steps complete.
 | 11 | `docs/12_notebook01_golden_path.md` | `notebooks/01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb` + freeze golden constants | **DONE** |
 | 12 | `docs/13_notebook02_strategy_cards.md` | `notebooks/02_strategy_cards_practice.ipynb` | **DONE** |
 | 13 | `docs/14_competition_notebook03.md` | `mobo_lab/competition.py`, `notebooks/03_competition.ipynb` | **DONE** |
-| 14 | `docs/15_notebook04_extensions.md` | `notebooks/04_optional_extensions.ipynb` | TODO |
+| 14 | `docs/15_notebook04_extensions.md` | `notebooks/04_optional_extensions.ipynb` | **DONE** |
 
 Locked decisions captured above: fully-synthetic-over-latents oracle (§4.1), larger curated OAS
 library + pluggable embeddings (§13.0), discrete-pool graded golden path (§14), `LATENT_DIM = 5`

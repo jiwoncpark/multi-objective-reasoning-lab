@@ -11,6 +11,8 @@ from mobo_lab.acquisitions import (
     RandomSelector,
     UncertaintySelector,
     build_acquisition,
+    format_scalarized_name,
+    is_known_card,
     make_sampler,
     parse_scalarized_weights,
 )
@@ -101,6 +103,29 @@ def test_uncertainty_selector_picks_unqueried_ids(fitted, pool):
     ids = sel.select(pool, q=config.BATCH_SIZE, observed_ids=observed)
     assert len(set(ids)) == config.BATCH_SIZE
     assert not (set(ids) & set(observed))
+
+
+@pytest.mark.parametrize("weights", [[0.5, 0.5], [0.8, 0.2], [0.7, 0.3], [0.25, 0.75]])
+def test_scalarized_name_roundtrip(weights):
+    name = format_scalarized_name(weights)
+    assert name.startswith("scalarized_")
+    assert parse_scalarized_weights(name) == weights
+
+
+def test_is_known_card_accepts_custom_scalarized():
+    assert is_known_card("nehvi")
+    assert is_known_card("scalarized_0.7_0.3")  # custom weights, not in STRATEGY_NAMES
+    assert not is_known_card("teleport")
+    assert not is_known_card("scalarized_0.7")  # too few weights
+
+
+def test_build_custom_scalarized_acquisition(fitted):
+    model, X, Y = fitted
+    acq = build_acquisition(
+        "scalarized_0.7_0.3", model, X, Y, config.REF_POINT, make_sampler(num_samples=16)
+    )
+    test_X = X[[0, 1, 2, 3]].unsqueeze(0)
+    assert acq(test_X).shape == torch.Size([1])
 
 
 def test_strategy_names_complete():
