@@ -8,6 +8,8 @@ all modules should be tested and tests written in `tests` with intuitive numeric
 
 the high-level initial outline, which may change later on, is in `docs/01_outline.md`. this outline file should be updated with every commit, as the plan evolves.
 
+do not refer to the docs anywhere in the student-facing code or jupyter notebooks. it will only confuse them.
+
 `docs` contains my design document in markdown files. i'll later put my lecture slides here as well.
 `scripts` contains scripts (relevant to just me) for coming up with the starter code and data.
 `notebooks` contains jupyter notebooks the students will work through.

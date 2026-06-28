@@ -16,6 +16,26 @@ dependencies = [
     "torch>=2.12.1",
 ]
 
+# Make the ``mobo_lab`` helper package importable everywhere (notebooks run from
+# notebooks/, tests from the repo root) by installing it into the environment.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mobo_lab"]
+
+# Tests import ``mobo_lab`` directly; ``pythonpath`` keeps them working even
+# without a (re)install, and importlib mode avoids test-file name clashes across
+# the mirrored tests/ tree.
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+markers = [
+    "slow: tests that spawn a Jupyter kernel / execute a notebook (deselect with -m 'not slow')",
+]
+
 # Install the CPU-only build of PyTorch so the lab runs identically on student
 # machines (no GPU). See https://docs.astral.sh/uv/guides/integration/pytorch/
 [tool.uv.sources]
@@ -28,5 +48,9 @@ explicit = true
 
 [dependency-groups]
 dev = [
+    "anarcii>=2.0",
+    "datasets>=3.0",
+    "jupytext>=1.16",
+    "nbclient>=0.10",
     "pytest>=9.1.1",
 ]

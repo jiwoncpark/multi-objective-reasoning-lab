@@ -130,7 +130,7 @@ Then open the notebooks in order (they build on each other):
 ```
 notebooks/
   00_pareto_hypervolume_warmup.ipynb
-  01_seeded_noisy_batch_mobo_iteration.ipynb
+  01_seeded_noisy_sequential_greedy_mobo_iteration.ipynb
   02_strategy_cards_practice.ipynb
   03_competition.ipynb
   04_optional_extensions.ipynb

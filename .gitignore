@@ -27,3 +27,6 @@ venv/
 outputs/
 results/
 wandb/
+
+# Raw OAS data units (large; instructor downloads locally — see docs/05)
+data/oas_raw/
