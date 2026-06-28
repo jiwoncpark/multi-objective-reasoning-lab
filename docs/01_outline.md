@@ -1381,15 +1381,18 @@ data/
   vh_library.csv                   # curated OAS pool (sequence_id, sequence, length, source, cluster_id)
   oas_filtered.csv.gz              # ~10,200 ANARCII-clean reservoir (sequence, source, isotype) -> sample 2048 from it
   vh_latents.npy                   # [N, 5] in [0,1]
-  initial_indices.json
+  initial_indices.json             # 12 diverse, non-front starter ids (build_initial_design.py)
   oracle_true_objectives.npy       # hidden; noisy observations generated deterministically by the oracle
+  oracle_params.json               # tunable synthetic-objective constants (preflight can sweep)
   vh_data.csv                      # legacy 113-sequence reference (not the competition pool)
 ```
 
-Status (2026-06-27): `vh_library.csv` (2048 seqs across ~91 donor sources),
-`oas_filtered.csv.gz` (10,200 reservoir) and `vh_latents.npy` (`[2048, 5] ⊂ [0,1]`,
-descriptor_pca backend, min pairwise distance 0.0166) are **materialized**; oracle /
-initial design are the next steps (`docs/07`).
+Status (2026-06-28): `vh_library.csv` (2048 seqs across ~91 donor sources),
+`oas_filtered.csv.gz` (10,200 reservoir), `vh_latents.npy` (`[2048, 5] ⊂ [0,1]`,
+descriptor_pca backend, min pairwise distance 0.0166), `oracle_true_objectives.npy`
+(`[2048, 2] ⊂ [0,1]`, synthetic; spearman -0.21, 7-point front), `oracle_params.json`,
+and `initial_indices.json` (12 non-front ids) are **materialized**. Pool/projection
+(`docs/08`) is the next code step.
 
 ### 13.1 `vh_library.csv` (curated competition pool)
 
@@ -1779,7 +1782,7 @@ steps complete.
 | 3 | `docs/04_notebook00_warmup.md` | `notebooks/00_pareto_hypervolume_warmup.ipynb` | **DONE** |
 | 4 | `docs/05_library_curation_oas.md` | `scripts/{download_oas,build_library}.py`, `mobo_lab/data.py` (OAS → `vh_library.csv`) | **DONE** |
 | 5 | `docs/06_embeddings.md` | `scripts/build_latents.py`, `mobo_lab/embeddings.py` (`vh_latents.npy`) | **DONE** |
-| 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | TODO |
+| 6 | `docs/07_oracle_initial_design.md` | `scripts/build_oracle.py`, `scripts/build_initial_design.py`, `mobo_lab/oracle.py` | **DONE** |
 | 7 | `docs/08_pool_projection.md` | `mobo_lab/{pool,projection}.py` | TODO |
 | 8 | `docs/09_bo_engine.md` | `mobo_lab/{models,acquisitions,optimize}.py` | TODO |
 | 9 | `docs/10_strategies_verification.md` | `mobo_lab/{strategies,verification}.py` | TODO |

@@ -1,8 +1,23 @@
 # Step 6 — Synthetic oracle + initial design
 
-**Status:** TODO
+**Status:** DONE (2026-06-28)
 **Depends on:** Step 5 (`vh_latents.npy`)
 **Unblocks:** the BO engine (Step 8), strategies/competition, and every notebook that queries objectives.
+
+**Result:** `mobo_lab/oracle.py` + `scripts/build_oracle.py` + `scripts/build_initial_design.py`
+materialize `data/oracle_true_objectives.npy` `[2048, 2] ⊂ [0,1]`, `data/oracle_params.json`
+(tunable design constants), and `data/initial_indices.json` (12 ids), all byte-identical on
+re-run. On the real latents: `spearman(obj1, obj2) = -0.21` (small / mild trade-off), true Pareto
+front = **7 points** spanning a max pairwise latent distance of **1.0** (≥2 separated regions). The
+initial design is 12 sequences drawn from the **central-or-below** objective band (both objectives
+≤ the 60th percentile, `--max-quantile`), then farthest-point-sampled within that band for latent
+spread — 0 on the true front; `HV(initial) = 0.409` vs `HV(true front) = 1.025` → **40% of the
+achievable max**, i.e. ~60% headroom for the competition. 16 tests green.
+
+> **Preflight note (Step 10):** remaining difficulty knob to revisit at the gate — the front is
+> fairly convex (concavity is mild), tunable via `oracle_params.json` without code changes. The
+> initial-design headroom is now generous (40% of max); `--max-quantile` can retune it if the
+> preflight shows strategies separate too early or too late.
 
 ## Goal
 

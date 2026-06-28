@@ -7,7 +7,7 @@ the synthetic oracle and the nearest-neighbour projection behave sensibly. The
 students never see this script; they only interact with the oracle and the
 notebooks.
 
-Two groups of figures are produced (saved to ``docs/figures/`` by default).
+Three groups of figures are produced (saved to ``docs/figures/`` by default).
 
 Legacy biophysical EDA (113-sequence ``vh_data.csv`` reference; skipped if the
 spreadsheet is absent):
@@ -28,6 +28,14 @@ skipped if absent):
 6. ``latent_nn_distances.png``    -- histogram of each sequence's nearest-
    neighbour distance, with the global minimum marked (this is the quantity the
    projection-separation guard in ``build_latents.py`` protects).
+
+Oracle objective ("property") space EDA (the hidden ``data/oracle_true_objectives.npy``;
+skipped if absent):
+
+7. ``objective_space.png``        -- the two synthetic objectives ("binding-like"
+   vs "stability-like") for all 2048 sequences, with marginal histograms, the true
+   Pareto front (staircase), the shared initial design, and the reference point.
+   This is the instructor view of what teams start from and what they are chasing.
 
 Notes on direction-of-goodness for the four simulated properties
 ----------------------------------------------------------------
@@ -421,6 +429,85 @@ def plot_latent_nn_distances(
     return path
 
 
+# --------------------------------------------------------------------------- #
+# Oracle objective ("property") space EDA (the two synthetic objectives)
+# --------------------------------------------------------------------------- #
+def plot_objective_space(
+    Y: np.ndarray,
+    outdir: Path,
+    initial_ids: list[int] | None = None,
+    ref_point=None,
+) -> Path:
+    """Joint plot of the two oracle objectives with the true Pareto front.
+
+    Central panel scatters all sequences in (objective 1, objective 2) space (both
+    maximization), with the true Pareto front drawn as a staircase, the shared
+    initial design circled, and the reference point starred. Marginal histograms
+    sit above and to the right. This is the instructor's view of the design problem:
+    where teams start and which trade-offs they are competing to discover.
+    """
+    import torch  # local: keep the default biophysical path import-light
+
+    from mobo_lab.metrics import compute_pareto_mask
+
+    mask = compute_pareto_mask(torch.as_tensor(Y, dtype=torch.double)).numpy()
+    rho = pd.Series(Y[:, 0]).corr(pd.Series(Y[:, 1]), method="spearman")
+
+    fig = plt.figure(figsize=(10, 9))
+    gs = fig.add_gridspec(
+        2, 2, width_ratios=(4, 1), height_ratios=(1, 4), wspace=0.04, hspace=0.04
+    )
+    ax = fig.add_subplot(gs[1, 0])
+    ax_top = fig.add_subplot(gs[0, 0], sharex=ax)
+    ax_right = fig.add_subplot(gs[1, 1], sharey=ax)
+
+    # all library sequences
+    ax.scatter(Y[:, 0], Y[:, 1], s=10, color="#B0B0B0", alpha=0.55,
+               edgecolor="none", label=f"library ({len(Y)})")
+
+    # initial design (the shared starter set)
+    if initial_ids is not None and len(initial_ids):
+        init = np.asarray(initial_ids, dtype=int)
+        ax.scatter(Y[init, 0], Y[init, 1], s=80, facecolor="none",
+                   edgecolor="#4C72B0", linewidth=1.8, zorder=4,
+                   label=f"initial design ({len(init)})")
+
+    # true Pareto front: staircase + points
+    fx, fy = Y[mask, 0], Y[mask, 1]
+    step_x, step_y = _pareto_staircase(fx, fy)
+    ax.plot(step_x, step_y, color="#C44E52", linewidth=2, zorder=3)
+    ax.scatter(fx, fy, s=55, color="#C44E52", edgecolor="k", linewidth=0.5,
+               zorder=5, label=f"true Pareto front ({int(mask.sum())})")
+
+    # reference point
+    if ref_point is not None:
+        ax.scatter([ref_point[0]], [ref_point[1]], marker="*", s=220, color="k",
+                   zorder=6, label="reference point")
+        ax.axvline(ref_point[0], color="k", linestyle=":", linewidth=1, alpha=0.4)
+        ax.axhline(ref_point[1], color="k", linestyle=":", linewidth=1, alpha=0.4)
+
+    ax.set_xlabel("objective 1: binding-like  (higher = better)", fontsize=12)
+    ax.set_ylabel("objective 2: stability-like  (higher = better)", fontsize=12)
+    ax.legend(loc="lower left", fontsize=10, framealpha=0.9)
+
+    # marginal histograms
+    ax_top.hist(Y[:, 0], bins=40, color="#B0B0B0", edgecolor="white")
+    ax_top.axis("off")
+    ax_right.hist(Y[:, 1], bins=40, orientation="horizontal",
+                  color="#B0B0B0", edgecolor="white")
+    ax_right.axis("off")
+
+    ax_top.set_title(
+        f"Oracle objective ('property') space -- {len(Y)} sequences   "
+        f"(Spearman rho = {rho:+.2f})",
+        fontsize=14,
+    )
+    path = outdir / "objective_space.png"
+    fig.savefig(path, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -434,6 +521,12 @@ def main() -> None:
         type=Path,
         default=config.LATENTS_NPY,
         help=f"Latent design matrix from build_latents.py (default: {config.LATENTS_NPY}).",
+    )
+    parser.add_argument(
+        "--true",
+        type=Path,
+        default=config.ORACLE_TRUE_NPY,
+        help=f"Hidden true objectives from build_oracle.py (default: {config.ORACLE_TRUE_NPY}).",
     )
     parser.add_argument(
         "--outdir",
@@ -467,6 +560,22 @@ def main() -> None:
     else:
         print(f"[visualize] {args.latents} not found; skipping latent figures "
               "(run scripts/build_latents.py first).")
+
+    # (3) Oracle objective ("property") space over the curated competition pool.
+    if args.true.exists():
+        Y_true = np.load(args.true)
+        initial_ids = None
+        if config.INITIAL_IDS_JSON.exists():
+            from mobo_lab import data as _data
+
+            initial_ids = _data.load_initial_ids(config.INITIAL_IDS_JSON)
+        written.append(
+            plot_objective_space(Y_true, args.outdir, initial_ids, config.REF_POINT)
+        )
+        print(f"Visualized {len(Y_true)} sequences in oracle objective space.")
+    else:
+        print(f"[visualize] {args.true} not found; skipping objective-space figure "
+              "(run scripts/build_oracle.py first).")
 
     print(f"Wrote {len(written)} figures:")
     for p in written:
