@@ -15,7 +15,11 @@ import numpy as np
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from visualize_data import _pareto_front_2d_max, _pareto_staircase  # noqa: E402
+from visualize_data import (  # noqa: E402
+    _pareto_front_2d_max,
+    _pareto_staircase,
+    nearest_neighbor_distances,
+)
 
 
 def test_pareto_front_simple_maximization() -> None:
@@ -52,3 +56,16 @@ def test_staircase_is_monotonic() -> None:
     # Starts at the highest-y point and ends at the highest-x point.
     assert (sx[0], sy[0]) == (0.0, 3.0)
     assert (sx[-1], sy[-1]) == (3.0, 0.0)
+
+
+def test_nearest_neighbor_distances_known_points() -> None:
+    # NN of (0,0) is (0,3) at 3; of (0,3) is (0,0) at 3; of (4,0) is (0,0) at 4.
+    pts = np.array([[0.0, 0.0], [0.0, 3.0], [4.0, 0.0]])
+    nn = nearest_neighbor_distances(pts)
+    np.testing.assert_allclose(nn, [3.0, 3.0, 4.0])
+
+
+def test_nearest_neighbor_distances_degenerate() -> None:
+    assert nearest_neighbor_distances(np.zeros((1, 5))).tolist() == [0.0]
+    # identical points -> zero nearest-neighbour distance
+    np.testing.assert_array_equal(nearest_neighbor_distances(np.zeros((3, 2))), [0, 0, 0])

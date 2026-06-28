@@ -1,12 +1,16 @@
-"""Visualize the antibody VH library: biophysical properties and sequences.
+"""Visualize the antibody VH library: biophysical properties, sequences, latents.
 
 These plots are an instructor-only design aid. We use them to understand the
-*shape* of the simulated biophysical measurements -- their ranges, correlations,
-and trade-offs -- so that the synthetic oracle we build for the lab produces a
-realistic-looking, non-trivial Pareto front. The students never see this script;
-they only interact with the oracle and the notebooks.
+*shape* of the data -- the simulated biophysical measurements (ranges,
+correlations, trade-offs) and the geometry of the latent design space -- so that
+the synthetic oracle and the nearest-neighbour projection behave sensibly. The
+students never see this script; they only interact with the oracle and the
+notebooks.
 
-Four figures are produced (saved to ``docs/figures/`` by default):
+Two groups of figures are produced (saved to ``docs/figures/`` by default).
+
+Legacy biophysical EDA (113-sequence ``vh_data.csv`` reference; skipped if the
+spreadsheet is absent):
 
 1. ``property_distributions.png`` -- histograms of every numeric property.
 2. ``property_correlations.png``  -- correlation heatmap between properties.
@@ -14,6 +18,16 @@ Four figures are produced (saved to ``docs/figures/`` by default):
    with each raw property re-expressed as "higher is better."
 4. ``sequence_overview.png``      -- sequence length, germline families, and
    amino-acid composition.
+
+Latent-geometry EDA (the 2048-sequence curated pool, ``data/vh_latents.npy``;
+skipped if absent):
+
+5. ``latent_distribution.png``    -- 5x5 corner plot of the latent cube
+   ``[0, 1]^5``: per-dimension marginals on the diagonal, pairwise 2D-density
+   panels below, so the joint distribution of the 2048 sequences is visible.
+6. ``latent_nn_distances.png``    -- histogram of each sequence's nearest-
+   neighbour distance, with the global minimum marked (this is the quantity the
+   projection-separation guard in ``build_latents.py`` protects).
 
 Notes on direction-of-goodness for the four simulated properties
 ----------------------------------------------------------------
@@ -52,7 +66,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from parse_data import DEFAULT_OUTPUT, STANDARD_AMINO_ACIDS, parse_vh_data  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+from mobo_lab import config  # noqa: E402
+
 DEFAULT_OUTDIR = REPO_ROOT / "docs" / "figures"
+
+# Below this nearest-neighbour distance two latent vectors are effectively
+# indistinguishable to the projection step; mirrors the guard in build_latents.py.
+LATENT_MIN_DIST_TAU = 1e-2
 
 # The four simulated biophysical objectives, with a human-readable label and the
 # direction that counts as "better." Driven off this table so the plots and the
@@ -303,6 +324,103 @@ def plot_sequence_overview(df: pd.DataFrame, outdir: Path, top_n: int = 12) -> P
     return path
 
 
+# --------------------------------------------------------------------------- #
+# Latent-geometry EDA (the curated 2048-sequence pool in [0, 1]^LATENT_DIM)
+# --------------------------------------------------------------------------- #
+def nearest_neighbor_distances(points: np.ndarray) -> np.ndarray:
+    """Per-row Euclidean distance to the closest other row.
+
+    Returns an array of length ``len(points)`` (zeros if fewer than two points).
+    Uses the ``||a-b||^2 = ||a||^2 + ||b||^2 - 2 a.b`` identity, so the full
+    pairwise sweep over the ~2k-point pool stays a couple of cheap matrix ops.
+    """
+    points = np.asarray(points, dtype=np.float64)
+    n = len(points)
+    if n < 2:
+        return np.zeros(n)
+    gram = points @ points.T
+    sq = np.diag(gram)
+    d2 = np.maximum(sq[:, None] + sq[None, :] - 2.0 * gram, 0.0)
+    np.fill_diagonal(d2, np.inf)
+    return np.sqrt(d2.min(axis=1))
+
+
+def plot_latent_distribution(latents: np.ndarray, outdir: Path) -> Path:
+    """Corner plot of the latent cube: marginals on the diagonal, density below.
+
+    Diagonal cell ``i`` is the 1-D histogram of latent dimension ``i``; lower-
+    triangle cell ``(i, j<i)`` is a 2-D density (``hist2d``) of dimension ``j`` (x)
+    vs dimension ``i`` (y). All axes are pinned to ``[0, 1]`` so the panels share
+    a common frame and a clumped or edge-piled distribution is obvious at a glance.
+    """
+    d = latents.shape[1]
+    fig, axgrid = plt.subplots(d, d, figsize=(3.0 * d, 2.8 * d))
+    for i in range(d):
+        for j in range(d):
+            ax = axgrid[i, j]
+            if j > i:  # upper triangle: unused
+                ax.axis("off")
+                continue
+            if i == j:  # diagonal: marginal histogram
+                ax.hist(latents[:, i], bins=30, range=(0, 1),
+                        color="#4C72B0", edgecolor="white")
+                ax.set_yticks([])
+                ax.set_xlim(0, 1)
+            else:  # lower triangle: 2-D density
+                ax.hist2d(latents[:, j], latents[:, i], bins=30,
+                          range=[[0, 1], [0, 1]], cmap="mako")
+                ax.set_xlim(0, 1)
+                ax.set_ylim(0, 1)
+
+            if i == d - 1:
+                ax.set_xlabel(f"z{j}", fontsize=12)
+            else:
+                ax.set_xticklabels([])
+            if j == 0:
+                ax.set_ylabel(f"z{i}", fontsize=12)
+            elif i != j:
+                ax.set_yticklabels([])
+            ax.tick_params(labelsize=9)
+
+    fig.suptitle(
+        f"Latent distribution of {len(latents)} sequences in [0, 1]^{d}\n"
+        "(diagonal = per-dimension marginal; lower = pairwise 2D density)",
+        fontsize=16,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    path = outdir / "latent_distribution.png"
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+    return path
+
+
+def plot_latent_nn_distances(
+    latents: np.ndarray, outdir: Path, tau: float = LATENT_MIN_DIST_TAU
+) -> Path:
+    """Histogram of nearest-neighbour distances, with the global minimum marked."""
+    nn = nearest_neighbor_distances(latents)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.hist(nn, bins=40, color="#55A868", edgecolor="white")
+    ax.axvline(nn.min(), color="#C44E52", linestyle="--", linewidth=2,
+               label=f"min = {nn.min():.4f}")
+    ax.axvline(np.median(nn), color="#4C72B0", linestyle=":", linewidth=2,
+               label=f"median = {np.median(nn):.4f}")
+    ax.axvline(tau, color="#8172B3", linestyle="-", linewidth=1.5,
+               label=f"guard tau = {tau:g}")
+    ax.set_xlabel("nearest-neighbour distance in latent space")
+    ax.set_ylabel("count")
+    ax.set_title(
+        f"Latent separation of {len(latents)} sequences "
+        "(left tail near tau = projection risk)"
+    )
+    ax.legend()
+    fig.tight_layout()
+    path = outdir / "latent_nn_distances.png"
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -312,23 +430,45 @@ def main() -> None:
         help=f"Cleaned CSV from parse_data.py (default: {DEFAULT_OUTPUT}).",
     )
     parser.add_argument(
+        "--latents",
+        type=Path,
+        default=config.LATENTS_NPY,
+        help=f"Latent design matrix from build_latents.py (default: {config.LATENTS_NPY}).",
+    )
+    parser.add_argument(
         "--outdir",
         type=Path,
         default=DEFAULT_OUTDIR,
         help=f"Directory for output figures (default: {DEFAULT_OUTDIR}).",
     )
     args = parser.parse_args()
-
-    df = add_derived_columns(load_table(args.csv))
     args.outdir.mkdir(parents=True, exist_ok=True)
 
-    written = [
+    written: list[Path] = []
+
+    # (1) Legacy biophysical EDA over the 113-sequence reference table.
+    df = add_derived_columns(load_table(args.csv))
+    written += [
         plot_property_distributions(df, args.outdir),
         plot_property_correlations(df, args.outdir),
         plot_property_tradeoffs(df, args.outdir),
         plot_sequence_overview(df, args.outdir),
     ]
-    print(f"Visualized {len(df)} sequences. Wrote {len(written)} figures:")
+    print(f"Visualized {len(df)} reference sequences (biophysical EDA).")
+
+    # (2) Latent-geometry EDA over the curated competition pool.
+    if args.latents.exists():
+        latents = np.load(args.latents)
+        written += [
+            plot_latent_distribution(latents, args.outdir),
+            plot_latent_nn_distances(latents, args.outdir),
+        ]
+        print(f"Visualized {len(latents)} latent vectors in [0, 1]^{latents.shape[1]}.")
+    else:
+        print(f"[visualize] {args.latents} not found; skipping latent figures "
+              "(run scripts/build_latents.py first).")
+
+    print(f"Wrote {len(written)} figures:")
     for p in written:
         print(f"  {p}")
 
