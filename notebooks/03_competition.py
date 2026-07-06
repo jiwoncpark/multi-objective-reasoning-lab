@@ -27,8 +27,10 @@
 # growing the front *early* matters, not just at the end. Ties break on final HV,
 # then number of non-dominated antibodies found, then diversity.
 #
-# The **only** thing you change is your `TEAM_STRATEGY`: the batch plan you play
-# each round. Everything else is locked.
+# This is an **adaptive** campaign: you play **one round at a time**. After each
+# round you see the hypervolume you reached, then decide the *next* round's batch
+# plan in light of it — exactly like a real design–test–learn loop. Everything else
+# (the pool, oracle, initial design, batch size, round count) is locked.
 
 # %% [markdown]
 # ## Locked setup (read-only)
@@ -59,49 +61,73 @@ print(f"  pool size  = {len(pool)} candidate sequences")
 print(f"  REF_POINT  = {config.REF_POINT}")
 
 # %% [markdown]
-# ## ✏️ Your team's strategy (the only cell you edit)
+# ## ✏️ Start your campaign
 #
-# `TEAM_STRATEGY` is a list of **one batch plan per round** (so its length must be
-# `N_ROUNDS`). Each plan's slots must add up to `BATCH_SIZE`. The cards you can play:
-# `nehvi`, `parego`, `scalarized_0.8_0.2`, `scalarized_0.2_0.8`, `scalarized_0.5_0.5`,
-# `random`, `uncertainty`.
+# Name your team and open a `Campaign`. It holds all the state (what's been measured,
+# the hypervolume so far) and enforces the rules for you every round: fixed
+# `BATCH_SIZE`, no duplicates, never re-measure an antibody.
 #
 # Optionally switch the projection used for the continuous fallback with
 # `PROJECTION_METHOD` (`"nearest"` or `"diverse_nearest"`).
 
 # %%
 TEAM_NAME = "Team Example"
-
-TEAM_STRATEGY = [
-    {"nehvi": 4},
-    {"nehvi": 3, "random": 1},
-    {"parego": 4},
-    {"nehvi": 2, "scalarized_0.5_0.5": 2},
-    {"nehvi": 4},
-    {"nehvi": 4},
-]
-
 PROJECTION_METHOD = "nearest"
 
-# Check each plan before spending compute (friendly error if a round is malformed).
-assert len(TEAM_STRATEGY) == config.N_ROUNDS, "TEAM_STRATEGY must have one plan per round"
-from mobo_lab.strategies import validate_batch_plan
-
-for round_plan in TEAM_STRATEGY:
-    validate_batch_plan(round_plan)
-print(f"{TEAM_NAME}: {len(TEAM_STRATEGY)} valid rounds, projection = {PROJECTION_METHOD}")
+campaign = competition.Campaign(TEAM_NAME, projection_method=PROJECTION_METHOD)
+print(f"{TEAM_NAME}: {campaign.rounds_left} rounds to play, starting HV = {campaign.current_hv:.4f}")
 
 # %% [markdown]
-# ## Run your campaign
+# ## Play the rounds — one at a time, adapting as you go
 #
-# `run_campaign` plays your plan round by round — fit the model, propose a batch,
-# measure it, update — and records the hypervolume after each round. It enforces the
-# rules for you: fixed batch size, no duplicates, never re-measure an antibody.
+# Each round below: edit the **batch plan** (a dict whose slot counts add up to
+# `BATCH_SIZE`), run the cell, and read the hypervolume it reached. Then look at the
+# front and decide what to play next. The cards you can spend slots on:
+# `nehvi`, `parego`, `scalarized_0.8_0.2`, `scalarized_0.2_0.8`, `scalarized_0.5_0.5`,
+# `random`, `uncertainty`.
+#
+# > Tip: `nehvi` chases the biggest hypervolume gain; `parego` spreads across the
+# > front; fixed `scalarized_*` commit to one trade-off; `random` / `uncertainty`
+# > spend a slot on exploration. Watch where the front has *gaps* and steer there.
 
 # %%
-history = competition.run_campaign(
-    TEAM_STRATEGY, TEAM_NAME, projection_method=PROJECTION_METHOD
-)
+# --- Round 1 --------------------------------------------------------------
+campaign.play_round({"nehvi": 4})
+campaign.plot_front();
+
+# %%
+# --- Round 2 (edit after reading round 1) ---------------------------------
+campaign.play_round({"nehvi": 3, "random": 1})
+campaign.plot_front();
+
+# %%
+# --- Round 3 --------------------------------------------------------------
+campaign.play_round({"parego": 4})
+campaign.plot_front();
+
+# %%
+# --- Round 4 --------------------------------------------------------------
+campaign.play_round({"nehvi": 2, "scalarized_0.5_0.5": 2})
+campaign.plot_front();
+
+# %%
+# --- Round 5 --------------------------------------------------------------
+campaign.play_round({"nehvi": 4})
+campaign.plot_front();
+
+# %%
+# --- Round 6 --------------------------------------------------------------
+campaign.play_round({"nehvi": 4})
+campaign.plot_front();
+
+# %% [markdown]
+# ## Finalize and submit
+#
+# Once all `N_ROUNDS` rounds are played, `finalize()` scores the campaign (AUC-HV)
+# and `save_run_outputs` writes your entry for the leaderboard.
+
+# %%
+history = campaign.finalize()
 competition.save_run_outputs(history)
 
 print(f"AUC-HV   : {history['auc_hv']:.4f}   <- the score")

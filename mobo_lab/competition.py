@@ -46,6 +46,181 @@ def _slug(team_name: str) -> str:
 # --------------------------------------------------------------------------- #
 # Campaign
 # --------------------------------------------------------------------------- #
+class Campaign:
+    """Stateful, one-round-at-a-time campaign so teams can *adapt* between rounds.
+
+    Play a single round with :meth:`play_round`, read the hypervolume it reports,
+    then decide the *next* round's plan in light of what you just saw -- the whole
+    point of an adaptive campaign. When all ``n_rounds`` rounds are played, call
+    :meth:`finalize` to get the same history dict :func:`run_campaign` returns (feed
+    it straight to :func:`save_run_outputs`).
+
+    Reproducibility is preserved. Each round's randomness is seeded by
+    ``seed + round_index`` (via :func:`propose_batch_from_plan`), and the surrogate
+    fit is deterministic, so a given *sequence of plans* reproduces exactly whether
+    played interactively here or in one shot through :func:`run_campaign` -- and
+    inspecting hypervolume between rounds (pure lookups, no RNG) cannot perturb it.
+    The same outline §10 fairness rules are enforced every round: fixed
+    ``BATCH_SIZE``, no duplicates, never re-measure an already-observed antibody.
+
+    The fixed contest assets (``pool``, ``oracle``, ``initial_ids``) load from the
+    locked data files unless injected (tests pass tiny fixtures). The oracle is built
+    ``allow_true=False`` so a running campaign can never peek at the hidden objectives.
+    """
+
+    def __init__(
+        self,
+        team_name: str,
+        seed: int = config.SEED,
+        projection_method: str = config.PROJECTION_METHOD,
+        *,
+        pool: VHSequencePool | None = None,
+        oracle: AntibodyOracle | None = None,
+        initial_ids: list[int] | None = None,
+        n_rounds: int | None = None,
+        ref_point=config.REF_POINT,
+        optimize: str = "discrete",
+    ) -> None:
+        self.team_name = team_name
+        self.seed = seed
+        self.projection_method = projection_method
+        self.ref_point = ref_point
+        self.optimize = optimize
+        self._pool = pool if pool is not None else VHSequencePool.from_files()
+        self._oracle = (
+            oracle if oracle is not None else AntibodyOracle.from_files(allow_true=False)
+        )
+        resolved_initial = initial_ids if initial_ids is not None else data.load_initial_ids()
+        self.n_rounds = n_rounds if n_rounds is not None else config.N_ROUNDS
+
+        set_all_seeds(seed)
+        self._initial_ids = [int(i) for i in resolved_initial]
+        self._observed_ids = list(self._initial_ids)
+        self._observed_Y = self._oracle.evaluate(self._observed_ids)
+        self._hv_history = [metrics.compute_hypervolume(self._observed_Y, ref_point)]
+        self._rounds: list[dict] = []
+        self._selected_ids: list[int] = []
+
+    # -- state ------------------------------------------------------------- #
+    @property
+    def round_index(self) -> int:
+        """How many rounds have been played so far (0 before the first)."""
+        return len(self._rounds)
+
+    @property
+    def rounds_left(self) -> int:
+        """Rounds still to play before the campaign is complete."""
+        return self.n_rounds - self.round_index
+
+    @property
+    def current_hv(self) -> float:
+        """Hypervolume of everything observed so far (initial design + all rounds)."""
+        return self._hv_history[-1]
+
+    # -- play -------------------------------------------------------------- #
+    def play_round(self, plan: dict, *, verbose: bool = True) -> dict:
+        """Play one round from ``plan``; update state and return that round's record.
+
+        Fits the surrogate on everything observed so far, proposes ``BATCH_SIZE``
+        distinct new antibodies per ``plan``, "measures" them, and records the new
+        hypervolume. Prints a one-line ``HV before -> after (+gain)`` summary unless
+        ``verbose=False`` -- read it, then choose the next round's plan.
+        """
+        if self.round_index >= self.n_rounds:
+            raise RuntimeError(
+                f"all {self.n_rounds} rounds already played; call finalize() to score "
+                "the campaign"
+            )
+        validate_batch_plan(plan, config.BATCH_SIZE)
+
+        r = self.round_index
+        train_X = self._pool.X[self._observed_ids]
+        train_Y = self._observed_Y
+        needs_model = any(name != "random" for name in plan)
+        model = fit_surrogate_model(train_X, train_Y) if needs_model else None
+
+        new_ids = propose_batch_from_plan(
+            plan, model, self._pool, self._observed_ids, train_X, train_Y,
+            ref_point=self.ref_point, projection_method=self.projection_method,
+            optimize=self.optimize, seed=self.seed + r,
+        )
+        # Per-round fairness guards (outline §10), checked before we commit the round.
+        assert len(new_ids) == config.BATCH_SIZE, "fixed batch size"
+        assert len(set(new_ids)) == len(new_ids), "no duplicate selected IDs"
+        assert not (set(new_ids) & set(self._observed_ids)), "never re-evaluate observed IDs"
+
+        new_Y = self._oracle.evaluate(new_ids)
+        hv_before = self._hv_history[-1]
+        self._observed_ids = self._observed_ids + new_ids
+        self._observed_Y = torch.cat([self._observed_Y, new_Y], dim=0)
+        self._selected_ids.extend(new_ids)
+        hv = metrics.compute_hypervolume(self._observed_Y, self.ref_point)
+        self._hv_history.append(hv)
+        record = {"round": r, "plan": dict(plan), "ids": list(new_ids),
+                  "Y": new_Y.tolist(), "hv": hv}
+        self._rounds.append(record)
+
+        if verbose:
+            print(
+                f"round {r + 1}/{self.n_rounds}  "
+                f"HV {hv_before:.4f} -> {hv:.4f}  (+{hv - hv_before:.4f})  "
+                f"selected {new_ids}"
+            )
+        return record
+
+    def finalize(self) -> dict:
+        """Return the scored history dict (needs all ``n_rounds`` rounds played)."""
+        if self.round_index != self.n_rounds:
+            raise RuntimeError(
+                f"played {self.round_index} of {self.n_rounds} rounds; play "
+                f"{self.rounds_left} more before finalize()"
+            )
+        # Anti-confusion guards (outline §10), re-checked on the assembled campaign.
+        assert all(len(rd["ids"]) == config.BATCH_SIZE for rd in self._rounds), "fixed batch size"
+        assert len(set(self._selected_ids)) == len(self._selected_ids), "no duplicate selected IDs"
+        assert not (set(self._selected_ids) & set(self._initial_ids)), "never re-evaluate observed IDs"
+
+        final_mask = metrics.compute_pareto_mask(self._observed_Y)
+        n_nondominated = int(final_mask[len(self._initial_ids):].sum())
+        return {
+            "team_name": self.team_name,
+            "seed": self.seed,
+            "batch_size": config.BATCH_SIZE,
+            "n_rounds": self.n_rounds,
+            "projection_method": self.projection_method,
+            "strategy": [dict(rd["plan"]) for rd in self._rounds],
+            "rounds": self._rounds,
+            "hv_history": self._hv_history,
+            "selected_ids": self._selected_ids,
+            "final_Y": self._observed_Y.tolist(),
+            "n_initial": len(self._initial_ids),
+            "auc_hv": metrics.compute_auc_hv(self._hv_history),
+            "final_hv": self._hv_history[-1],
+            "n_nondominated_selected": n_nondominated,
+            "embedding_diversity": metrics.compute_embedding_diversity(
+                self._pool.X[self._selected_ids]
+            ),
+        }
+
+    # -- visualization (used by the notebook between rounds) --------------- #
+    def plot_front(self, ax=None):
+        """Objective-space scatter of the achieved front so far (selected flagged)."""
+        selected = torch.zeros(self._observed_Y.shape[0], dtype=torch.bool)
+        selected[len(self._initial_ids):] = True
+        return plotting.plot_pareto_front(
+            self._observed_Y, selected_mask=selected, ref_point=self.ref_point,
+            title=f"{self.team_name}: front after round {self.round_index} "
+                  f"(HV {self.current_hv:.3f})",
+            ax=ax,
+        )
+
+    def plot_hv(self, ax=None):
+        """Hypervolume-vs-round curve for the rounds played so far."""
+        return plotting.plot_hv_curve(
+            self._hv_history, title=f"{self.team_name}: hypervolume vs round", ax=ax
+        )
+
+
 def run_campaign(
     team_strategy: list[dict],
     team_name: str,
@@ -69,79 +244,28 @@ def run_campaign(
     ``optimize`` defaults to ``"discrete"`` (the reproducible competition path);
     ``"continuous"`` runs the continuous optimizer + projection, which is where
     ``projection_method`` takes effect (used by the extensions notebook).
-    """
-    if pool is None:
-        pool = VHSequencePool.from_files()
-    if oracle is None:
-        oracle = AntibodyOracle.from_files(allow_true=False)
-    if initial_ids is None:
-        initial_ids = data.load_initial_ids()
-    if n_rounds is None:
-        n_rounds = config.N_ROUNDS
 
-    if len(team_strategy) != n_rounds:
+    This is the one-shot (open-loop) path: it plays a *pre-committed* strategy. For
+    the interactive path where a team adapts each round from the observed
+    hypervolume, drive :class:`Campaign` directly -- both share the same per-round
+    machinery, so the same sequence of plans yields an identical history.
+    """
+    campaign = Campaign(
+        team_name, seed=seed, projection_method=projection_method,
+        pool=pool, oracle=oracle, initial_ids=initial_ids, n_rounds=n_rounds,
+        ref_point=ref_point, optimize=optimize,
+    )
+    if len(team_strategy) != campaign.n_rounds:
         raise ValueError(
-            f"team_strategy must have exactly {n_rounds} rounds (the fixed budget), "
-            f"got {len(team_strategy)}"
+            f"team_strategy must have exactly {campaign.n_rounds} rounds (the fixed "
+            f"budget), got {len(team_strategy)}"
         )
     for plan in team_strategy:  # fail fast before any expensive fitting
         validate_batch_plan(plan, config.BATCH_SIZE)
 
-    set_all_seeds(seed)
-    initial_ids = [int(i) for i in initial_ids]
-    observed_ids = list(initial_ids)
-    observed_Y = oracle.evaluate(observed_ids)
-
-    hv_history = [metrics.compute_hypervolume(observed_Y, ref_point)]
-    rounds: list[dict] = []
-    selected_ids: list[int] = []
-
-    for r, plan in enumerate(team_strategy):
-        train_X = pool.X[observed_ids]
-        train_Y = observed_Y
-        needs_model = any(name != "random" for name in plan)
-        model = fit_surrogate_model(train_X, train_Y) if needs_model else None
-
-        new_ids = propose_batch_from_plan(
-            plan, model, pool, observed_ids, train_X, train_Y,
-            ref_point=ref_point, projection_method=projection_method,
-            optimize=optimize, seed=seed + r,
-        )
-        new_Y = oracle.evaluate(new_ids)
-
-        observed_ids = observed_ids + new_ids
-        observed_Y = torch.cat([observed_Y, new_Y], dim=0)
-        selected_ids.extend(new_ids)
-        hv = metrics.compute_hypervolume(observed_Y, ref_point)
-        hv_history.append(hv)
-        rounds.append({"round": r, "plan": dict(plan), "ids": list(new_ids),
-                       "Y": new_Y.tolist(), "hv": hv})
-
-    # Anti-confusion guards (outline §10), re-checked on the assembled campaign.
-    assert all(len(rd["ids"]) == config.BATCH_SIZE for rd in rounds), "fixed batch size"
-    assert len(set(selected_ids)) == len(selected_ids), "no duplicate selected IDs"
-    assert not (set(selected_ids) & set(initial_ids)), "never re-evaluate observed IDs"
-
-    final_mask = metrics.compute_pareto_mask(observed_Y)
-    n_nondominated = int(final_mask[len(initial_ids):].sum())
-
-    return {
-        "team_name": team_name,
-        "seed": seed,
-        "batch_size": config.BATCH_SIZE,
-        "n_rounds": n_rounds,
-        "projection_method": projection_method,
-        "strategy": [dict(p) for p in team_strategy],
-        "rounds": rounds,
-        "hv_history": hv_history,
-        "selected_ids": selected_ids,
-        "final_Y": observed_Y.tolist(),
-        "n_initial": len(initial_ids),
-        "auc_hv": metrics.compute_auc_hv(hv_history),
-        "final_hv": hv_history[-1],
-        "n_nondominated_selected": n_nondominated,
-        "embedding_diversity": metrics.compute_embedding_diversity(pool.X[selected_ids]),
-    }
+    for plan in team_strategy:
+        campaign.play_round(plan, verbose=False)
+    return campaign.finalize()
 
 
 # --------------------------------------------------------------------------- #

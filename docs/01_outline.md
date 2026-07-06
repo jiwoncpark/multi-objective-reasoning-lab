@@ -864,7 +864,8 @@ You all start with the same initial evaluated antibodies.
 Each round, your wet lab can test exactly BATCH_SIZE new antibodies.
 Within each round, acquisition-based strategies fill the batch greedily, one slot at a time.
 You have N_ROUNDS rounds.
-You may choose a different strategy plan each round.
+The campaign is ADAPTIVE: you play one round at a time, see the hypervolume you
+reached, then choose the next round's plan in light of it (design–test–learn).
 Your goal is to maximize hypervolume as quickly as possible.
 ```
 
@@ -883,26 +884,31 @@ These should not be editable in the competition notebook unless the instructor e
 
 ### Student-editable object
 
-Students should edit only:
+The campaign is played interactively through a stateful `competition.Campaign`
+object (one cell per round), so teams **adapt** after inspecting each round's
+hypervolume instead of pre-committing all `N_ROUNDS` plans up front:
 
 ```python
-TEAM_STRATEGY = [
-    {"nehvi": 4},
-    {"nehvi": 3, "random": 1},
-    {"parego": 4},
-    {"nehvi": 2, "scalarized_0.5_0.5": 2},
-    {"nehvi": 4},
-    {"nehvi": 4},
-]
+campaign = competition.Campaign(TEAM_NAME, projection_method=PROJECTION_METHOD)
+
+# one cell per round — edit the plan after reading the previous round's HV:
+campaign.play_round({"nehvi": 4})              # prints HV before -> after (+gain)
+campaign.plot_front()
+# ... N_ROUNDS such cells ...
+
+history = campaign.finalize()                  # scores AUC-HV; feed to save_run_outputs
 ```
 
-Optionally expose projection method:
+Each round's plan is a batch-plan dict whose slots sum to `BATCH_SIZE`. Optionally
+expose the projection method (`PROJECTION_METHOD = "diverse_nearest"`). Avoid
+exposing too many free-form hooks.
 
-```python
-PROJECTION_METHOD = "diverse_nearest"
-```
-
-Avoid exposing too many free-form hooks.
+**Reproducibility / fairness.** `Campaign` seeds each round by `seed + round_index`
+and the surrogate fit is deterministic, so a given *sequence of plans* reproduces
+exactly and inspecting HV between rounds (pure lookups) cannot perturb it. The
+open-loop `run_campaign(team_strategy, ...)` is retained as a thin wrapper over
+`Campaign` (plays a pre-committed list); both share the same per-round machinery and
+yield identical histories for the same plans.
 
 ### Competition metrics
 
@@ -1312,7 +1318,13 @@ def plot_true_front_with_team_overlays(
 Expose:
 
 ```python
-def run_campaign(team_strategy, team_name, seed, projection_method): ...
+class Campaign:  # stateful, one-round-at-a-time adaptive driver (student-facing)
+    def __init__(self, team_name, seed, projection_method, ...): ...
+    def play_round(self, plan, *, verbose=True): ...  # -> round record; prints HV gain
+    def finalize(self): ...                           # -> history dict (as run_campaign)
+    def plot_front(self, ax=None): ...
+    def plot_hv(self, ax=None): ...
+def run_campaign(team_strategy, team_name, seed, projection_method): ...  # open-loop wrapper over Campaign
 def save_run_outputs(history, output_dir): ...
 def load_team_runs(output_dir): ...
 def update_leaderboard(output_dir): ...

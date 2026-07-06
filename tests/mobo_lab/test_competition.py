@@ -59,6 +59,62 @@ def test_run_campaign_rejects_wrong_round_count(fixture_contest):
         )
 
 
+def _campaign(fixture_contest, name="Adaptive", **kw):
+    pool, oracle, initial_ids = fixture_contest
+    return competition.Campaign(
+        name, pool=pool, oracle=oracle, initial_ids=initial_ids, **kw,
+    )
+
+
+def test_campaign_interactive_matches_run_campaign(fixture_contest):
+    # Playing the same plans one-at-a-time (inspecting HV between) must reproduce the
+    # one-shot open-loop history exactly -- that reproducibility is the whole contract.
+    strategy = [{"nehvi": 4}, {"nehvi": 2, "parego": 2}, {"parego": 4}]
+    batched = _run(strategy, "Twin", fixture_contest)
+
+    c = _campaign(fixture_contest, name="Twin", n_rounds=3)
+    for plan in strategy:
+        c.play_round(plan, verbose=False)
+        _ = c.current_hv  # inspecting between rounds must not perturb the RNG
+    interactive = c.finalize()
+
+    assert interactive == batched
+
+
+def test_campaign_adapts_next_plan_from_observed_hv(fixture_contest):
+    # The point of the class: choose round r+1 after seeing round r's hypervolume.
+    c = _campaign(fixture_contest, n_rounds=3)
+    assert c.round_index == 0 and c.rounds_left == 3
+    hvs = [c.current_hv]
+    for _ in range(3):
+        plan = {"nehvi": 4} if c.current_hv < 0.99 else {"parego": 4}  # data-dependent choice
+        c.play_round(plan, verbose=False)
+        hvs.append(c.current_hv)
+    assert c.round_index == 3 and c.rounds_left == 0
+    assert all(hvs[i + 1] >= hvs[i] - 1e-9 for i in range(len(hvs) - 1))
+    assert c.finalize()["n_rounds"] == 3
+
+
+def test_campaign_play_round_rejects_bad_plan_sum(fixture_contest):
+    c = _campaign(fixture_contest, n_rounds=2)
+    with pytest.raises(ValueError, match="sum"):
+        c.play_round({"nehvi": 3})
+
+
+def test_campaign_play_beyond_budget_raises(fixture_contest):
+    c = _campaign(fixture_contest, n_rounds=1)
+    c.play_round({"nehvi": 4}, verbose=False)
+    with pytest.raises(RuntimeError, match="already played"):
+        c.play_round({"nehvi": 4})
+
+
+def test_campaign_finalize_before_budget_raises(fixture_contest):
+    c = _campaign(fixture_contest, n_rounds=2)
+    c.play_round({"nehvi": 4}, verbose=False)
+    with pytest.raises(RuntimeError, match="play 1 more"):
+        c.finalize()
+
+
 def test_oracle_blocks_true_objectives_during_run(fixture_contest):
     _, oracle, _ = fixture_contest
     with pytest.raises(PermissionError):
