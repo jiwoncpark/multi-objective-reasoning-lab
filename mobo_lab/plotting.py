@@ -14,11 +14,26 @@ import torch
 
 from . import metrics
 
+# All objectives are min-max normalized to [0, 1] (see scripts/build_oracle.py), so
+# objective-space plots share one fixed square window. Keeping the axes identical
+# across figures makes "before vs after a round" directly comparable at a glance. The
+# small margin keeps the reference point ([-0.05, -0.05]) and noise-scattered
+# observations (true + noise can land just outside [0, 1]) visible instead of clipped.
+OBJECTIVE_LIMS: tuple[float, float] = (-0.08, 1.08)
+
 
 def _new_ax(ax: plt.Axes | None) -> plt.Axes:
     if ax is None:
         _, ax = plt.subplots(figsize=(5, 5))
     return ax
+
+
+def _set_objective_limits(ax: plt.Axes, lims: tuple[float, float] | None) -> None:
+    """Pin both axes to ``lims`` (a fixed square window); ``None`` keeps autoscale."""
+    if lims is not None:
+        ax.set_xlim(*lims)
+        ax.set_ylim(*lims)
+        ax.set_aspect("equal", adjustable="box")
 
 
 def _mark_ref_point(ax: plt.Axes, ref_point) -> None:
@@ -41,6 +56,7 @@ def plot_objective_space(
     ref_point=None,
     ax: plt.Axes | None = None,
     title: str | None = None,
+    lims: tuple[float, float] | None = OBJECTIVE_LIMS,
 ) -> plt.Axes:
     """Scatter objective 1 vs objective 2, optionally highlighting non-dominated points."""
     ax = _new_ax(ax)
@@ -58,6 +74,7 @@ def plot_objective_space(
     _mark_ref_point(ax, ref_point)
     ax.set_xlabel("objective 1 (higher is better)")
     ax.set_ylabel("objective 2 (higher is better)")
+    _set_objective_limits(ax, lims)
     if title:
         ax.set_title(title)
     ax.legend(loc="best", fontsize="small")
@@ -70,6 +87,7 @@ def plot_pareto_front(
     ref_point=None,
     title: str | None = None,
     ax: plt.Axes | None = None,
+    lims: tuple[float, float] | None = OBJECTIVE_LIMS,
 ) -> plt.Axes:
     """Scatter all points, draw the Pareto frontier, and optionally flag selected points."""
     ax = _new_ax(ax)
@@ -99,6 +117,7 @@ def plot_pareto_front(
     _mark_ref_point(ax, ref_point)
     ax.set_xlabel("objective 1 (higher is better)")
     ax.set_ylabel("objective 2 (higher is better)")
+    _set_objective_limits(ax, lims)
     if title:
         ax.set_title(title)
     ax.legend(loc="best", fontsize="small")
@@ -128,6 +147,7 @@ def plot_true_front_with_team_overlays(
     ref_point,
     output_path=None,
     ax: plt.Axes | None = None,
+    lims: tuple[float, float] | None = OBJECTIVE_LIMS,
 ) -> plt.Axes:
     """The instructor reveal: true Pareto front with each team's achievement on top.
 
@@ -173,6 +193,7 @@ def plot_true_front_with_team_overlays(
     _mark_ref_point(ax, ref_point)
     ax.set_xlabel("objective 1 (true, higher is better)")
     ax.set_ylabel("objective 2 (true, higher is better)")
+    _set_objective_limits(ax, lims)
     ax.set_title("True Pareto front vs team achievements")
     ax.legend(loc="best", fontsize="x-small")
     if output_path is not None:

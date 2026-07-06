@@ -176,3 +176,5 @@ plotting.plot_pareto_front(
 #
 # Next, we'll use these ideas to run one real round of batch Bayesian optimization:
 # fit a model, score candidates, pick a batch, and watch the hypervolume move.
+
+# %%

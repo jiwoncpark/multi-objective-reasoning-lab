@@ -41,6 +41,21 @@ def test_plot_pareto_front_with_selection():
     plt.close("all")
 
 
+def test_plot_pareto_front_uses_fixed_objective_window():
+    # Objectives are normalized to [0, 1]; both axes should snap to the shared
+    # square window so before/after figures are directly comparable.
+    ax = plotting.plot_pareto_front(Y_TOY, ref_point=[-0.05, -0.05])
+    assert ax.get_xlim() == plotting.OBJECTIVE_LIMS
+    assert ax.get_ylim() == plotting.OBJECTIVE_LIMS
+    plt.close("all")
+
+
+def test_plot_pareto_front_lims_none_autoscales():
+    ax = plotting.plot_pareto_front(Y_TOY, lims=None)
+    assert ax.get_xlim() != plotting.OBJECTIVE_LIMS
+    plt.close("all")
+
+
 def test_plot_hv_curve_returns_axes():
     ax = plotting.plot_hv_curve([0.0, 1.0, 1.5, 2.0])
     assert isinstance(ax, plt.Axes)

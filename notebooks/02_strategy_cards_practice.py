@@ -163,6 +163,11 @@ for ax, (label, res) in zip(axes.flat, results.items()):
     ax.set_title(label)
     ax.set_xlabel("objective 1")
     ax.set_ylabel("objective 2")
+    # Fixed [0, 1] objective window (objectives are normalized) so all six panels
+    # share one scale and are directly comparable.
+    ax.set_xlim(*plotting.OBJECTIVE_LIMS)
+    ax.set_ylim(*plotting.OBJECTIVE_LIMS)
+    ax.set_aspect("equal", adjustable="box")
     ax.legend(loc="best", fontsize="small")
 fig.tight_layout();
 
