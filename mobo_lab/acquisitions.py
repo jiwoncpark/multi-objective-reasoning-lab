@@ -16,9 +16,9 @@ name                          what it optimizes
 ============================  ============================================================
 ``nehvi``                     expected hypervolume improvement (the headline method)
 ``parego``                    random-weight Chebyshev scalarization (ParEGO)
-``scalarized_0.5_0.5``        fixed balanced Chebyshev scalarization
-``scalarized_0.8_0.2``        fixed objective-1-favouring scalarization
-``scalarized_0.2_0.8``        fixed objective-2-favouring scalarization
+``scalarized_<w1>_<w2>``      fixed-weight Chebyshev scalarization on a dense
+                              preference grid (``w1`` = 0.05, 0.10, ..., 0.95;
+                              ``w2 = 1 - w1``), e.g. ``scalarized_0.8_0.2``
 ``random``                    uniform pick among unqueried pool sequences (baseline)
 ``uncertainty``               most-uncertain unqueried pool sequences (exploration)
 ============================  ============================================================
@@ -246,15 +246,29 @@ def build_acquisition(
     raise KeyError(f"unknown acquisition {name!r}; choices: {sorted(STRATEGY_NAMES)}")
 
 
+# Spacing of the fixed-weight scalarization preference grid (weight on objective 1).
+SCALARIZED_WEIGHT_STEP = 0.05
+
+
+def scalarized_grid(step: float = SCALARIZED_WEIGHT_STEP) -> list[str]:
+    """Dense fixed-weight scalarization card names, favouring one objective to the other.
+
+    The objective-1 weight sweeps ``step, 2*step, ..., 1 - step`` (endpoints excluded
+    so both objectives always carry weight) and the objective-2 weight is the
+    complement -- e.g. with the default step: ``scalarized_0.05_0.95`` through
+    ``scalarized_0.5_0.5`` to ``scalarized_0.95_0.05``. Off-grid weights still work
+    (see :func:`is_known_card`); this is just the advertised menu.
+    """
+    n = round(1.0 / step)
+    names = []
+    for i in range(1, n):
+        w1 = round(i * step, 2)
+        w2 = round(1.0 - w1, 2)
+        names.append(format_scalarized_name([w1, w2]))
+    return names
+
+
 # The full card menu, for validation and tests.
 STRATEGY_NAMES = frozenset(
-    {
-        "nehvi",
-        "parego",
-        "scalarized_0.5_0.5",
-        "scalarized_0.8_0.2",
-        "scalarized_0.2_0.8",
-        "random",
-        "uncertainty",
-    }
+    {"nehvi", "parego", "random", "uncertainty", *scalarized_grid()}
 )

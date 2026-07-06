@@ -83,12 +83,15 @@ print(f"{TEAM_NAME}: {campaign.rounds_left} rounds to play, starting HV = {campa
 # Each round below: edit the **batch plan** (a dict whose slot counts add up to
 # `BATCH_SIZE`), run the cell, and read the hypervolume it reached. Then look at the
 # front and decide what to play next. The cards you can spend slots on:
-# `nehvi`, `parego`, `scalarized_0.8_0.2`, `scalarized_0.2_0.8`, `scalarized_0.5_0.5`,
-# `random`, `uncertainty`.
+# `nehvi`, `parego`, `random`, `uncertainty`, and the fixed-preference family
+# `scalarized_<w1>_<w2>` — with `w1` on a dense grid `0.05, 0.10, …, 0.95` and
+# `w2 = 1 - w1` (e.g. `scalarized_0.05_0.95` leans hard on objective 2,
+# `scalarized_0.5_0.5` is balanced, `scalarized_0.95_0.05` leans hard on objective 1).
 #
 # > Tip: `nehvi` chases the biggest hypervolume gain; `parego` spreads across the
-# > front; fixed `scalarized_*` commit to one trade-off; `random` / `uncertainty`
-# > spend a slot on exploration. Watch where the front has *gaps* and steer there.
+# > front; a fixed `scalarized_*` commits to one trade-off — pick the weight to aim
+# > at a *specific* part of the front; `random` / `uncertainty` spend a slot on
+# > exploration. Watch where the front has *gaps* and steer a scalarization there.
 
 # %%
 # --- Round 1 --------------------------------------------------------------

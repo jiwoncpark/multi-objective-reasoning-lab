@@ -33,8 +33,9 @@
 # - **`nehvi`** — expands the Pareto front where hypervolume gain looks largest.
 # - **`parego`** — samples a *random* trade-off preference each pick, so it spreads
 #   across the front.
-# - **`scalarized_0.8_0.2` / `scalarized_0.2_0.8`** — commit to a *fixed*
-#   preference (favor objective 1, or objective 2).
+# - **`scalarized_<w1>_<w2>`** — commit to a *fixed* preference. The weight `w1` on
+#   objective 1 runs on a dense grid (`0.05, 0.10, …, 0.95`, with `w2 = 1 - w1`), so
+#   `scalarized_0.8_0.2` favors objective 1 and `scalarized_0.2_0.8` favors objective 2.
 # - **`random`** — a baseline: pick unmeasured antibodies at random.
 # - **`uncertainty`** — spend the budget where the model is least sure.
 #

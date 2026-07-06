@@ -114,7 +114,8 @@ def test_scalarized_name_roundtrip(weights):
 
 def test_is_known_card_accepts_custom_scalarized():
     assert is_known_card("nehvi")
-    assert is_known_card("scalarized_0.7_0.3")  # custom weights, not in STRATEGY_NAMES
+    assert is_known_card("scalarized_0.73_0.27")  # off-grid weights, not in STRATEGY_NAMES
+    assert "scalarized_0.73_0.27" not in acquisitions.STRATEGY_NAMES
     assert not is_known_card("teleport")
     assert not is_known_card("scalarized_0.7")  # too few weights
 
@@ -122,19 +123,18 @@ def test_is_known_card_accepts_custom_scalarized():
 def test_build_custom_scalarized_acquisition(fitted):
     model, X, Y = fitted
     acq = build_acquisition(
-        "scalarized_0.7_0.3", model, X, Y, config.REF_POINT, make_sampler(num_samples=16)
+        "scalarized_0.73_0.27", model, X, Y, config.REF_POINT, make_sampler(num_samples=16)
     )
     test_X = X[[0, 1, 2, 3]].unsqueeze(0)
     assert acq(test_X).shape == torch.Size([1])
 
 
-def test_strategy_names_complete():
-    assert acquisitions.STRATEGY_NAMES == {
-        "nehvi",
-        "parego",
-        "scalarized_0.5_0.5",
-        "scalarized_0.8_0.2",
-        "scalarized_0.2_0.8",
-        "random",
-        "uncertainty",
-    }
+def test_strategy_names_is_dense_scalarized_grid():
+    base = {"nehvi", "parego", "random", "uncertainty"}
+    grid = set(acquisitions.scalarized_grid())
+    assert acquisitions.STRATEGY_NAMES == base | grid
+    # Dense preference coverage: objective-1 weight from 0.05 to 0.95 in 0.05 steps.
+    assert len(grid) == 19
+    assert {"scalarized_0.05_0.95", "scalarized_0.5_0.5", "scalarized_0.95_0.05"} <= grid
+    for name in grid:
+        assert abs(sum(acquisitions.parse_scalarized_weights(name)) - 1.0) < 1e-9
