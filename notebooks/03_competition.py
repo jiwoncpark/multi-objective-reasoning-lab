@@ -136,12 +136,24 @@ campaign.plot_front();
 
 # %%
 history = campaign.finalize()
-competition.save_run_outputs(history)
+run_path = competition.save_run_outputs(history)
 
 print(f"AUC-HV   : {history['auc_hv']:.4f}   <- the score")
 print(f"final HV : {history['final_hv']:.4f}")
 print(f"non-dominated antibodies found: {history['n_nondominated_selected']}")
 print("HV by round:", [round(h, 4) for h in history["hv_history"]])
+print(f"\nsaved your submission to: {run_path}")
+
+# %% [markdown]
+# ## 📧 Submit your run
+#
+# Email your saved run file — **`outputs/<your_slug>_run.json`** (the exact path is
+# printed just above) — to **<email_address_on_the_slide>**.
+#
+# That one JSON is your whole submission: it records which antibodies your team
+# selected, so the instructor can reveal every team's true Pareto front side by side.
+# Send **one file per team**, and make sure your `TEAM_NAME` is distinct so your entry
+# doesn't overwrite another team's.
 
 # %% [markdown]
 # ## Your results

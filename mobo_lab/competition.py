@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -293,6 +294,21 @@ def save_run_outputs(history: dict, output_dir: str | Path = config.OUTPUTS_DIR)
     slug = _slug(history["team_name"])
 
     json_path = out / f"{slug}{RUN_SUFFIX}"
+    # Runs are keyed by the name slug and overwrite ("latest wins"). Re-running the
+    # *same* team is fine; a *different* team colliding on the slug would silently
+    # clobber the earlier submission, so warn before we do.
+    if json_path.exists():
+        try:
+            prior_name = json.loads(json_path.read_text()).get("team_name")
+        except (json.JSONDecodeError, OSError):
+            prior_name = None
+        if prior_name is not None and prior_name != history["team_name"]:
+            warnings.warn(
+                f"team name {history['team_name']!r} slugifies to {slug!r}, which "
+                f"already holds a run for {prior_name!r} -- that submission will be "
+                f"overwritten. Pick a more distinct team name.",
+                stacklevel=2,
+            )
     json_path.write_text(json.dumps(history, indent=2))
 
     rows = [{"round": rd["round"], "plan": json.dumps(rd["plan"]),

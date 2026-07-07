@@ -149,6 +149,23 @@ def test_save_and_load_roundtrip(fixture_contest, tmp_path):
     assert runs[0]["selected_ids"] == h["selected_ids"]
 
 
+def test_save_run_outputs_warns_on_slug_collision(fixture_contest, tmp_path):
+    h1 = _run([{"nehvi": 4}], "Team A", fixture_contest)
+    h2 = _run([{"random": 4}], "team a!", fixture_contest)  # -> same slug "team_a"
+    competition.save_run_outputs(h1, output_dir=tmp_path)
+
+    import warnings
+
+    # Different team, same slug -> warn (about to clobber the earlier submission).
+    with pytest.warns(UserWarning, match="slugifies"):
+        competition.save_run_outputs(h2, output_dir=tmp_path)
+
+    # Re-saving the *same* team must not warn ("latest wins" is intended).
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        competition.save_run_outputs(h2, output_dir=tmp_path)
+
+
 def test_leaderboard_ranks_by_auc_hv(fixture_contest, tmp_path):
     h1 = _run([{"nehvi": 4}, {"nehvi": 4}], "Strong", fixture_contest)
     h2 = _run([{"random": 4}, {"random": 4}], "Weak", fixture_contest)
