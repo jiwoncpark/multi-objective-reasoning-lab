@@ -1,5 +1,7 @@
 # Multi-Objective Bayesian Optimization Practicum
 
+Lecture slides are [here](https://drive.google.com/file/d/1Q9y8znKoaj-X3fmK5q-IMSUx38HtuARj/view?usp=sharing).
+
 Starter code for a 3-hour hands-on lab on **multi-objective decision making under
 uncertainty**, viewed through the lens of Bayesian optimization. You will act as a
 wet-lab antibody design team: each round you pick a batch of candidate sequences to
