@@ -220,6 +220,18 @@ class Campaign:
             self._hv_history, title=f"{self.team_name}: hypervolume vs round", ax=ax
         )
 
+    def plot_fronts_by_round(self, ax=None):
+        """Overlay the achieved Pareto front after each round played, colored by round."""
+        n0 = len(self._initial_ids)
+        initial_Y = self._observed_Y[:n0]
+        round_Ys = [torch.as_tensor(rd["Y"], dtype=torch.double) for rd in self._rounds]
+        round_hvs = [rd["hv"] for rd in self._rounds]
+        ax = plotting.plot_fronts_by_round(
+            initial_Y, round_Ys, ref_point=self.ref_point, round_hvs=round_hvs, ax=ax,
+        )
+        ax.set_title(f"{self.team_name}: Pareto front by round")
+        return ax
+
 
 def run_campaign(
     team_strategy: list[dict],

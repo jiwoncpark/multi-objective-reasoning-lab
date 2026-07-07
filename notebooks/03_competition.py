@@ -155,6 +155,17 @@ plotting.plot_pareto_front(
 fig.tight_layout();
 
 # %% [markdown]
+# ## How the front grew, round by round
+#
+# Each round gets its own color: the filled dots are that round's newly measured
+# antibodies, and the staircase is the Pareto front achieved *through* that round.
+# Watch the front march outward — and see which rounds (which acquisition cards)
+# opened up new trade-offs versus filling in the interior.
+
+# %%
+campaign.plot_fronts_by_round();
+
+# %% [markdown]
 # ## Leaderboard
 #
 # Once teams have saved their runs into `outputs/`, this ranks everyone by AUC-HV.

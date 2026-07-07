@@ -56,6 +56,21 @@ def test_plot_pareto_front_lims_none_autoscales():
     plt.close("all")
 
 
+def test_plot_fronts_by_round_returns_axes():
+    initial_Y = Y_TOY[:2]
+    round_Ys = [Y_TOY[2:4], Y_TOY[4:6]]
+    ax = plotting.plot_fronts_by_round(
+        initial_Y, round_Ys, ref_point=[-0.05, -0.05], round_hvs=[0.3, 0.5]
+    )
+    assert isinstance(ax, plt.Axes)
+    # one legend entry for the initial design + one per round
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert any("initial" in lab for lab in labels)
+    assert sum("after round" in lab for lab in labels) == 2
+    assert ax.get_xlim() == plotting.OBJECTIVE_LIMS  # shares the fixed window
+    plt.close("all")
+
+
 def test_plot_hv_curve_returns_axes():
     ax = plotting.plot_hv_curve([0.0, 1.0, 1.5, 2.0])
     assert isinstance(ax, plt.Axes)

@@ -124,6 +124,58 @@ def plot_pareto_front(
     return ax
 
 
+def plot_fronts_by_round(
+    initial_Y: torch.Tensor,
+    round_Ys: Sequence[torch.Tensor],
+    ref_point=None,
+    round_hvs: Sequence[float] | None = None,
+    title: str | None = "Pareto front by round",
+    ax: plt.Axes | None = None,
+    lims: tuple[float, float] | None = OBJECTIVE_LIMS,
+) -> plt.Axes:
+    """Overlay the achieved Pareto front after each round, colored by round.
+
+    ``initial_Y`` is the shared starting design (``[n0, 2]``); ``round_Ys`` is one
+    ``[q, 2]`` tensor of newly measured points per round. For each round we draw the
+    **cumulative** Pareto front (staircase) through that round in a round-specific
+    color and fill in that round's *new* acquisitions in the same color -- so you can
+    watch the front march outward and see which round reached which trade-off.
+    ``round_hvs`` (optional) annotate the legend. Objectives are maximization.
+    """
+    ax = _new_ax(ax)
+    cumulative = torch.as_tensor(initial_Y, dtype=torch.double)
+    ax.scatter(
+        cumulative[:, 0], cumulative[:, 1], color="lightgray", s=20, zorder=1,
+        label="initial design",
+    )
+
+    palette = plt.get_cmap("tab10").colors
+    for r, new_Y in enumerate(round_Ys):
+        new_Y = torch.as_tensor(new_Y, dtype=torch.double)
+        cumulative = torch.cat([cumulative, new_Y], dim=0)
+        color = palette[r % len(palette)]
+
+        front = cumulative[metrics.compute_pareto_mask(cumulative)]
+        step_x, step_y = metrics.pareto_staircase(front[:, 0], front[:, 1])
+        label = f"after round {r + 1}"
+        if round_hvs is not None:
+            label += f" (HV {round_hvs[r]:.3f})"
+        ax.plot(step_x, step_y, color=color, linewidth=1.5, zorder=2 + r, label=label)
+        ax.scatter(
+            new_Y[:, 0], new_Y[:, 1], color=color, s=45, edgecolors="white",
+            linewidths=0.5, zorder=10 + r,
+        )
+
+    _mark_ref_point(ax, ref_point)
+    ax.set_xlabel("objective 1 (higher is better)")
+    ax.set_ylabel("objective 2 (higher is better)")
+    _set_objective_limits(ax, lims)
+    if title:
+        ax.set_title(title)
+    ax.legend(loc="best", fontsize="x-small")
+    return ax
+
+
 def plot_hv_curve(
     hv_history: Sequence[float],
     title: str | None = None,

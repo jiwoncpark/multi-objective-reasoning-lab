@@ -95,6 +95,20 @@ def test_campaign_adapts_next_plan_from_observed_hv(fixture_contest):
     assert c.finalize()["n_rounds"] == 3
 
 
+def test_campaign_plot_fronts_by_round(fixture_contest):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    c = _campaign(fixture_contest, n_rounds=2)
+    c.play_round({"nehvi": 4}, verbose=False)
+    c.play_round({"parego": 4}, verbose=False)
+    ax = c.plot_fronts_by_round()
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert sum("after round" in lab for lab in labels) == 2  # one front per round played
+    plt.close("all")
+
+
 def test_campaign_play_round_rejects_bad_plan_sum(fixture_contest):
     c = _campaign(fixture_contest, n_rounds=2)
     with pytest.raises(ValueError, match="sum"):
