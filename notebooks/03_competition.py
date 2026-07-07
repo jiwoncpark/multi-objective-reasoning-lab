@@ -92,35 +92,40 @@ print(f"{TEAM_NAME}: {campaign.rounds_left} rounds to play, starting HV = {campa
 # > front; a fixed `scalarized_*` commits to one trade-off — pick the weight to aim
 # > at a *specific* part of the front; `random` / `uncertainty` spend a slot on
 # > exploration. Watch where the front has *gaps* and steer a scalarization there.
+#
+# The cells below ship a deliberately **naive baseline**: the *same* fixed
+# scalarization (`scalarized_0.8_0.2`, favoring objective 1) every round. Run it once
+# to see how it over-focuses one corner and leaves the rest of the front uncovered —
+# then edit the plans to spread out and beat it.
 
 # %%
-# --- Round 1 --------------------------------------------------------------
-campaign.play_round({"nehvi": 4})
+# --- Round 1 (edit this plan!) --------------------------------------------
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %%
-# --- Round 2 (edit after reading round 1) ---------------------------------
-campaign.play_round({"nehvi": 3, "random": 1})
+# --- Round 2 (adapt after reading round 1) --------------------------------
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %%
 # --- Round 3 --------------------------------------------------------------
-campaign.play_round({"parego": 4})
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %%
 # --- Round 4 --------------------------------------------------------------
-campaign.play_round({"nehvi": 2, "scalarized_0.5_0.5": 2})
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %%
 # --- Round 5 --------------------------------------------------------------
-campaign.play_round({"nehvi": 4})
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %%
 # --- Round 6 --------------------------------------------------------------
-campaign.play_round({"nehvi": 4})
+campaign.play_round({"scalarized_0.8_0.2": 4})
 campaign.plot_front();
 
 # %% [markdown]
